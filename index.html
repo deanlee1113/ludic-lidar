@@ -103,6 +103,9 @@ p{margin:0}
 .price-now{display:grid;gap:6px}
 .mystery{display:flex;align-items:baseline;gap:6px}
 .mystery .num{font-weight:900;font-size:clamp(56px,17vw,80px);color:var(--lavender);transform:skewX(-8deg);transform-origin:0 100%;letter-spacing:.01em}
+.mystery .ch{display:inline-block;width:var(--ch-w,auto);text-align:center}
+.mystery .ch.pop{animation:pop .3s var(--ease)}
+@keyframes pop{0%{transform:translateY(-.14em);opacity:.35}100%{transform:none;opacity:1}}
 .mystery small{font-size:18px;font-weight:600;color:var(--mist)}
 .price .cap{font-size:14px;line-height:20px;color:var(--mist)}
 .limit{justify-self:start;font-size:13px;line-height:18px;font-weight:600;color:var(--foam);border:1px solid var(--tick);border-radius:2px;padding:3px 8px;margin-top:4px}
@@ -308,7 +311,7 @@ details dd{margin:0}
       </div>
       <div class="price-now">
         <span class="k">라이브 특가</span>
-        <span class="mystery"><span class="num" aria-label="방송 중 공개">??,???</span><small>원</small></span>
+        <span class="mystery"><span class="num" role="img" aria-label="방송 중 공개">??,???</span><small>원</small></span>
         <span class="limit">모델 상관없이 1인당 3개</span>
         <p class="cap">라이브 시작 소식을 사전예약자에게 먼저 알려드려요.</p>
       </div>
@@ -514,6 +517,45 @@ details dd{margin:0}
     w.setAttribute('x2',(px+ux*4).toFixed(1)); w.setAttribute('y2',(py+uy*4).toFixed(1));
     w.setAttribute('class','wrap-p'); g.appendChild(w);
   });
+
+  // 라이브 특가 셔플: 숫자가 랜덤으로 돌다가 왼쪽부터 ??,??? 로 멈춤
+  const price=$('.mystery .num');
+  if(price&&!reduce){
+    const slots=[]; price.textContent='';
+    '??,???'.split('').forEach(c=>{
+      if(c===','){ price.append(','); return; }
+      const s=document.createElement('span'); s.className='ch'; s.textContent='?';
+      price.appendChild(s); slots.push(s);
+    });
+    const SPIN=900, STEP=140, HOLD=3200, TICK=55;
+    const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+    let spin=null, wait=null;
+    function stop(){ clearInterval(spin); clearTimeout(wait); spin=wait=null; slots.forEach(s=>{s.textContent='?';}); }
+    function cycle(){
+      const t0=performance.now();
+      spin=setInterval(()=>{
+        const n=Math.min(slots.length,Math.max(0,Math.floor((performance.now()-t0-SPIN)/STEP)+1));
+        slots.forEach((s,i)=>{
+          if(i>=n){ s.textContent=i===0?rnd(1,8):rnd(0,9); return; }
+          if(s.textContent!=='?'){ s.textContent='?'; s.classList.remove('pop'); void s.offsetWidth; s.classList.add('pop'); }
+        });
+        if(n===slots.length){ clearInterval(spin); spin=null; wait=setTimeout(cycle,HOLD); }
+      },TICK);
+    }
+    // 숫자와 ?의 폭 차이로 흔들리지 않게 칸 폭을 가장 넓은 글자에 맞춘다
+    const ready=document.fonts?document.fonts.ready:Promise.resolve();
+    ready.then(()=>{
+      const p=slots[0]; let w=0;
+      '0123456789?'.split('').forEach(c=>{ p.textContent=c; w=Math.max(w,p.offsetWidth); });
+      p.textContent='?';
+      price.style.setProperty('--ch-w',(w/parseFloat(getComputedStyle(price).fontSize)).toFixed(3)+'em');
+      if('IntersectionObserver' in window){
+        new IntersectionObserver(es=>{
+          es.forEach(en=>{ if(en.isIntersecting){ if(!spin&&!wait) wait=setTimeout(cycle,300); } else stop(); });
+        }).observe(price);
+      } else cycle();
+    });
+  }
 
   // ---- 접수 서버(Supabase) ----
   const CFG=window.LUDIC_CONFIG||{};

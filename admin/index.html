@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>루딕 라이다 사전예약 관리자</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 관리자 대시보드 — 위에서 아래로 요약 숫자 → 퍼널 → 추이·구성 → 신청자 목록 (STRIKE LiDAR 토큰) */
+:root{
+  --ink:#08070C; --carbon:#14111E; --carbon-raised:#1C1829; --plum:#2B1460; --violet:#7C3AED; --violet-pressed:#6A2BD6; --lavender:#B79CFF;
+  --flare:#FC5C2F; --foam:#F5F3FA; --mist:#BDB4D8; --tick:#7D72A8; --muted:#8E85AE; --white:#FFFFFF;
+  --field:#0E0C15; --line:#2A2440; --error:#FF8197; --success:#45E0A0;
+  --bar-soft:#4A3F72;
+  --font-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --font-heading:"Black Han Sans","IBM Plex Sans KR","Apple SD Gothic Neo",sans-serif;
+  --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.9,.1,1);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ink);color:var(--foam);font-family:var(--font-body);font-size:15px;line-height:22px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2{font-family:var(--font-heading);font-weight:400;margin:0}
+p{margin:0}
+.num{font-family:var(--font-display);font-variant-numeric:tabular-nums;line-height:1}
+.ico{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button,input{font:inherit}
+.btn{appearance:none;border:0;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:4px;font-weight:700;font-size:14px;line-height:18px;transition:transform .12s var(--ease),background .12s var(--ease)}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible,input:focus-visible{outline:2px solid var(--lavender);outline-offset:2px}
+.btn-primary{height:48px;padding:0 18px;background:var(--violet);color:var(--white);font-size:16px}
+.btn-primary:active{background:var(--violet-pressed)}
+.btn-primary:disabled{opacity:.6;cursor:progress}
+.btn-sec{height:40px;padding:0 14px;background:transparent;color:var(--foam);border:1px solid var(--tick)}
+.btn-ghost{height:32px;padding:0 10px;background:transparent;color:var(--mist);border:1px solid var(--line);font-size:13px}
+.btn-danger{background:var(--error);color:var(--ink);border-color:var(--error)}
+.err{display:flex;align-items:center;gap:6px;font-size:13px;line-height:18px;font-weight:600;color:var(--error)}
+
+/* 상단 바 */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ink);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--ink)}
+.top-in{display:flex;align-items:center;justify-content:space-between;gap:12px;height:60px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand img{width:96px;height:auto;display:block}
+.brand span{font-size:14px;font-weight:600;color:var(--mist);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-actions{display:flex;align-items:center;gap:8px}
+.updated{font-size:12px;color:var(--muted);white-space:nowrap}
+
+/* 로그인 */
+.login{min-height:calc(100vh - 61px);display:grid;place-items:center;padding-block:40px}
+.login-card{width:100%;max-width:380px;background:var(--carbon);border:1px solid var(--line);border-radius:12px;padding:28px 24px;display:grid;gap:18px}
+.login-card h1{font-size:24px;line-height:32px}
+.login-card .sub{font-size:14px;color:var(--mist);margin-top:4px}
+.field{display:grid;gap:6px}
+.field label{font-size:13px;font-weight:600}
+.input{width:100%;height:46px;padding:0 14px;background:var(--field);color:var(--foam);border:1px solid var(--tick);border-radius:4px;font-size:16px}
+.input::placeholder{color:var(--muted)}
+.notice{font-size:13px;line-height:19px;color:var(--mist);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+
+/* 대시보드 */
+.dash{display:grid;gap:28px;padding-block:24px 64px}
+.sec{display:grid;gap:12px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sec-h h2{font-size:20px;line-height:28px}
+.sec-h p{font-size:13px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.kpi{background:var(--carbon);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:8px;min-width:0}
+.kpi .k{font-size:13px;font-weight:600;color:var(--mist)}
+.kpi .v{display:flex;align-items:baseline;gap:4px}
+.kpi .v .num{font-size:36px;font-weight:900}
+.kpi .v small{font-size:13px;color:var(--mist)}
+.kpi.hero{background:var(--plum);border-color:var(--violet)}
+.kpi.hero .v .num{color:var(--lavender)}
+.kpi .h{font-size:12px;line-height:16px;color:var(--muted)}
+.kpi.hero .h,.kpi.hero .k{color:var(--foam)}
+
+.panel{background:var(--carbon);border:1px solid var(--line);border-radius:8px;padding:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:8px}
+.panel h3{margin:0 0 12px;font-size:14px;line-height:20px;font-weight:700;color:var(--foam)}
+.bars{display:grid;gap:10px}
+.bar-row{display:grid;grid-template-columns:minmax(84px,auto) 1fr auto;align-items:center;gap:10px;font-size:13px}
+.bar-row .lbl{color:var(--mist);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{height:12px;background:var(--field);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;background:var(--violet);border-radius:2px;min-width:2px}
+.bar-fill.soft{background:var(--bar-soft)}
+.bar-row .val{font-family:var(--font-display);font-weight:800;font-size:18px;min-width:52px;text-align:right;font-variant-numeric:tabular-nums}
+.bar-row .val small{font-family:var(--font-body);font-size:12px;font-weight:500;color:var(--muted);margin-left:4px}
+.empty{font-size:13px;color:var(--muted);padding:8px 0}
+
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:11px;font-family:var(--font-body)}
+.chart .gl{stroke:var(--line);stroke-width:1}
+.chart .bv{fill:var(--bar-soft)}
+.chart .br{fill:var(--violet)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--mist);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.search{flex:1;min-width:180px;height:40px;padding:0 12px;background:var(--field);color:var(--foam);border:1px solid var(--tick);border-radius:4px;font-size:15px}
+.search::placeholder{color:var(--muted)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--carbon)}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:820px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;font-weight:600;color:var(--mist);background:var(--carbon-raised);position:sticky;top:0}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td.q{font-family:var(--font-display);font-weight:800;font-size:17px}
+td.q.zero{color:var(--line)}
+td.tot{color:var(--lavender)}
+tr:last-child td{border-bottom:0}
+.count{font-size:13px;color:var(--mist)}
+.mask-toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--mist);cursor:pointer;min-height:40px}
+.mask-toggle input{width:16px;height:16px;accent-color:var(--violet)}
+
+@media (max-width:900px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .kpis .kpi.hero{grid-column:1/-1}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .updated{display:none}
+}
+@media (max-width:520px){
+  .brand span{display:none}
+  #refreshBtn .lbl{display:none}
+  #refreshBtn{width:40px;padding:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="brand"><img src="../assets/logo-white.webp" alt="낚맛" width="232" height="57"><span>루딕 라이다 사전예약 관리자</span></div>
+    <div class="top-actions" id="topActions" hidden>
+      <span class="updated" id="updated"></span>
+      <button type="button" class="btn btn-sec" id="refreshBtn" aria-label="새로고침"><svg class="ico" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg><span class="lbl">새로고침</span></button>
+      <button type="button" class="btn btn-ghost" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="login wrap" id="loginView">
+    <form class="login-card" id="loginForm" novalidate>
+      <div>
+        <h1>관리자 로그인</h1>
+        <p class="sub">사전예약 신청과 방문 현황을 볼 수 있어요.</p>
+      </div>
+      <p class="notice" id="cfgNotice" hidden>접수 서버가 아직 연결되지 않았어요. config.js에 Supabase 주소와 공개 키를 넣으면 로그인할 수 있어요.</p>
+      <div class="field"><label for="uid">아이디</label><input class="input" id="uid" autocomplete="username" autocapitalize="off" spellcheck="false"></div>
+      <div class="field"><label for="pw">비밀번호</label><input class="input" id="pw" type="password" autocomplete="current-password"></div>
+      <p class="err" id="loginErr" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+      <button type="submit" class="btn btn-primary" id="loginBtn">로그인</button>
+    </form>
+  </section>
+
+  <div class="dash wrap" id="dashView" hidden>
+    <section class="sec" aria-labelledby="sumTitle">
+      <div class="sec-h"><h2 id="sumTitle">요약</h2><p>방문은 페이지를 연 기기 기준이에요. 같은 휴대폰에서 다시 열면 순방문자 1명으로 세요.</p></div>
+      <div class="kpis">
+        <div class="kpi hero"><span class="k">사전예약</span><span class="v"><span class="num" id="kRes">0</span><small>건</small></span><span class="h" id="kResH"></span></div>
+        <div class="kpi"><span class="k">신청 수량 합계</span><span class="v"><span class="num" id="kUnits">0</span><small>개</small></span><span class="h">모델 상관없이 1인당 최대 3개</span></div>
+        <div class="kpi"><span class="k">순방문자</span><span class="v"><span class="num" id="kVis">0</span><small>명</small></span><span class="h">기기 기준</span></div>
+        <div class="kpi"><span class="k">방문 수</span><span class="v"><span class="num" id="kViews">0</span><small>회</small></span><span class="h">새로고침 포함</span></div>
+        <div class="kpi"><span class="k">전환율</span><span class="v"><span class="num" id="kConv">—</span><small>%</small></span><span class="h">사전예약 ÷ 순방문자</span></div>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="funTitle">
+      <div class="sec-h"><h2 id="funTitle">단계별 이탈</h2><p>순방문자 대비 비율</p></div>
+      <div class="panel"><div class="bars" id="funnel"></div></div>
+    </section>
+
+    <section class="sec" aria-labelledby="dayTitle">
+      <div class="sec-h"><h2 id="dayTitle">일별 추이</h2><p>한국 시간 기준, 최근 14일</p></div>
+      <div class="panel">
+        <div id="dailyChart"></div>
+        <div class="legend"><span><i style="background:var(--bar-soft)"></i>순방문자</span><span><i style="background:var(--violet)"></i>사전예약</span></div>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="mixTitle">
+      <div class="sec-h"><h2 id="mixTitle">구성</h2></div>
+      <div class="grid3">
+        <div class="panel"><h3>모델별 신청 수량</h3><div class="bars" id="models"></div></div>
+        <div class="panel"><h3>유입 경로 (순방문자)</h3><div class="bars" id="sources"></div></div>
+        <div class="panel"><h3>기기 (순방문자)</h3><div class="bars" id="devices"></div></div>
+      </div>
+    </section>
+
+    <section class="sec" aria-labelledby="listTitle">
+      <div class="sec-h"><h2 id="listTitle">신청자 목록</h2><span class="count" id="listCount"></span></div>
+      <div class="tools">
+        <input class="search" id="search" type="search" placeholder="이름 또는 휴대폰 번호로 찾기" aria-label="신청자 검색">
+        <label class="mask-toggle"><input type="checkbox" id="maskToggle" checked>번호 가리기</label>
+        <button type="button" class="btn btn-sec" id="csvBtn"><svg class="ico" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>엑셀(CSV) 받기</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>신청 시각</th><th>성함</th><th>휴대폰</th><th class="n">S-65L</th><th class="n">C-67M</th><th class="n">C-68MH</th><th class="n">합계</th><th>유입</th><th>기기</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="rowsEmpty" hidden>아직 신청이 없어요. 신청이 들어오면 여기에 바로 보여요.</p>
+      <p class="err" id="dashErr" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+    </section>
+  </div>
+</main>
+
+<script src="../config.js"></script>
+<script>
+(()=>{
+  const $=s=>document.querySelector(s);
+  const CFG=window.LUDIC_CONFIG||{};
+  const BASE=(CFG.supabaseUrl||'').replace(/\/$/,''), KEY=CFG.supabaseAnonKey||'';
+  const READY=!!(BASE&&KEY);
+  const SKEY='ll_admin_session';
+  const MODELS=[['S-65L','qty_s65l'],['C-67M','qty_c67m'],['C-68MH','qty_c68mh']];
+  let session=null, rows=[], timer=null;
+  try{ session=JSON.parse(sessionStorage.getItem(SKEY)||'null'); }catch(e){}
+  function save(s){ session=s; try{ s?sessionStorage.setItem(SKEY,JSON.stringify(s)):sessionStorage.removeItem(SKEY); }catch(e){} }
+
+  function showErr(el,msg){ el.hidden=!msg; el.querySelector('span').textContent=msg||''; }
+  function show(view){
+    $('#loginView').hidden=view!=='login'; $('#dashView').hidden=view!=='dash'; $('#topActions').hidden=view!=='dash';
+    if(view==='dash'){ start(); } else { clearInterval(timer); timer=null; }
+  }
+
+  async function authReq(grant,body){
+    const r=await fetch(BASE+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){ const e=new Error(j.error_description||j.msg||j.error||'auth_failed'); e.status=r.status; throw e; }
+    return {access_token:j.access_token,refresh_token:j.refresh_token,expires_at:Date.now()+(j.expires_in||3600)*1000};
+  }
+  async function token(){
+    if(!session) throw new Error('nologin');
+    if(Date.now()>session.expires_at-60000){
+      try{ save(await authReq('refresh_token',{refresh_token:session.refresh_token})); }
+      catch(e){ save(null); show('login'); throw e; }
+    }
+    return session.access_token;
+  }
+  async function api(path,opt={}){
+    const t=await token();
+    const r=await fetch(BASE+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+t,'Content-Type':'application/json',...(opt.headers||{})}});
+    if(r.status===401){ save(null); show('login'); showErr($('#loginErr'),'로그인 시간이 지났어요. 다시 로그인해 주세요.'); throw new Error('expired'); }
+    const tx=await r.text(); let j=null; try{ j=tx?JSON.parse(tx):null; }catch(e){}
+    if(!r.ok){ const e=new Error((j&&(j.message||j.msg))||('http_'+r.status)); e.status=r.status; throw e; }
+    return j;
+  }
+
+  // 로그인
+  if(!READY){ $('#cfgNotice').hidden=false; $('#loginBtn').disabled=true; }
+  $('#loginForm').addEventListener('submit',async e=>{
+    e.preventDefault(); if(!READY) return;
+    const id=$('#uid').value.trim(), pw=$('#pw').value;
+    if(!id||!pw){ showErr($('#loginErr'),'아이디와 비밀번호를 입력해 주세요'); return; }
+    const email=id.includes('@')?id:id+'@'+(CFG.adminEmailDomain||'nakmat.com');
+    const btn=$('#loginBtn'); btn.disabled=true; btn.textContent='확인하는 중…'; showErr($('#loginErr'),'');
+    try{ save(await authReq('password',{email,password:pw})); $('#pw').value=''; show('dash'); }
+    catch(err){ showErr($('#loginErr'), err.status===400||err.status===401?'아이디 또는 비밀번호가 맞지 않아요':'로그인하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.'); }
+    finally{ btn.disabled=false; btn.textContent='로그인'; }
+  });
+  $('#logoutBtn').addEventListener('click',()=>{ save(null); show('login'); $('#uid').focus(); });
+
+  // 데이터
+  async function fetchRows(){
+    let all=[], from=0;
+    for(;;){
+      const page=await api('/rest/v1/reservations?select=*&order=created_at.desc',{headers:{Range:from+'-'+(from+999),'Range-Unit':'items'}});
+      all=all.concat(page||[]); if(!page||page.length<1000) break; from+=1000;
+    }
+    return all;
+  }
+  async function load(){
+    showErr($('#dashErr'),'');
+    try{
+      const [stats,list]=await Promise.all([api('/rest/v1/rpc/admin_stats',{method:'POST',body:'{}'}),fetchRows()]);
+      rows=list; renderStats(stats); renderRows();
+      $('#updated').textContent='마지막 갱신 '+fmtTime(new Date(),true);
+    }catch(err){
+      if(err.message==='expired'||err.message==='nologin') return;
+      if(/not_admin/.test(err.message)){ save(null); show('login'); showErr($('#loginErr'),'관리자 권한이 없는 계정이에요'); return; }
+      showErr($('#dashErr'),'데이터를 불러오지 못했어요. 새로고침을 눌러 다시 시도해 주세요.');
+    }
+  }
+  function start(){ load(); clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden) load(); },60000); }
+  $('#refreshBtn').addEventListener('click',load);
+
+  // 표시
+  const nf=new Intl.NumberFormat('ko-KR');
+  function fmtTime(d,short){
+    const o=short?{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Seoul'}:{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Seoul'};
+    return new Intl.DateTimeFormat('ko-KR',o).format(d);
+  }
+  function fmtPhone(p,mask){
+    const d=String(p||''); const mid=d.length===11?d.slice(3,7):d.slice(3,6), last=d.slice(-4);
+    return d.slice(0,3)+'-'+(mask?'*'.repeat(mid.length):mid)+'-'+last;
+  }
+  function el(tag,attrs,text){ const e=document.createElement(tag); if(attrs) for(const k in attrs) e.setAttribute(k,attrs[k]); if(text!=null) e.textContent=text; return e; }
+  function bars(container,items,opts={}){
+    const box=$(container); box.textContent='';
+    if(!items.length){ box.appendChild(el('p',{class:'empty'},opts.empty||'아직 데이터가 없어요')); return; }
+    const max=opts.max||Math.max(...items.map(i=>i.value),1);
+    items.forEach(i=>{
+      const r=el('div',{class:'bar-row'});
+      r.appendChild(el('span',{class:'lbl',title:i.label},i.label));
+      const tr=el('div',{class:'bar-track'}); const f=el('div',{class:'bar-fill'+(i.soft?' soft':'')}); f.style.width=Math.round(i.value/max*100)+'%'; tr.appendChild(f); r.appendChild(tr);
+      const v=el('span',{class:'val'},nf.format(i.value)); if(i.note){ v.appendChild(el('small',null,i.note)); } r.appendChild(v);
+      box.appendChild(r);
+    });
+  }
+  function pct(a,b){ return b?Math.round(a/b*1000)/10:null; }
+  function renderStats(s){
+    $('#kRes').textContent=nf.format(s.reservations); $('#kUnits').textContent=nf.format(s.units);
+    $('#kVis').textContent=nf.format(s.visitors); $('#kViews').textContent=nf.format(s.views);
+    const c=pct(s.reservations,s.visitors); $('#kConv').textContent=c==null?'—':c;
+    $('#kResH').textContent='휴대폰 번호 1개당 1건';
+    const v=s.visitors||0;
+    bars('#funnel',[
+      {label:'페이지 방문',value:v,note:v?'100%':''},
+      {label:'신청 버튼 누름',value:s.cta_visitors,note:v?pct(s.cta_visitors,v)+'%':''},
+      {label:'신청서 입력 시작',value:s.start_visitors,note:v?pct(s.start_visitors,v)+'%':''},
+      {label:'사전예약 완료',value:s.reservations,note:v?pct(s.reservations,v)+'%':''}
+    ],{max:Math.max(v,s.reservations,1)});
+    bars('#models',Object.entries(s.models).map(([k,val])=>({label:k,value:val,note:'개'})),{empty:'아직 신청이 없어요'});
+    bars('#sources',(s.sources||[]).map(x=>({label:x.name,value:x.visitors,soft:true})),{empty:'아직 방문이 없어요'});
+    bars('#devices',(s.devices||[]).map(x=>({label:x.name==='mobile'?'모바일':x.name==='desktop'?'PC':x.name,value:x.visitors,soft:true})),{empty:'아직 방문이 없어요'});
+    renderDaily((s.daily||[]).slice(-14));
+  }
+  function renderDaily(days){
+    const box=$('#dailyChart'); box.textContent='';
+    if(!days.length){ box.appendChild(el('p',{class:'empty'},'아직 방문이 없어요')); return; }
+    const W=Math.max(320,Math.min(1080,Math.round(box.clientWidth||720))),H=W<560?200:240,L=36,B=26,T=12,R=8, iw=W-L-R, ih=H-T-B;
+    const max=Math.max(...days.map(d=>Math.max(d.visitors,d.reservations)),1);
+    const step=Math.max(1,Math.ceil(max/4)), top=step*4;
+    const NS='http://www.w3.org/2000/svg';
+    const svg=document.createElementNS(NS,'svg'); svg.setAttribute('viewBox',`0 0 ${W} ${H}`); svg.setAttribute('class','chart'); svg.setAttribute('role','img');
+    svg.setAttribute('aria-label','일별 순방문자와 사전예약');
+    const mk=(t,a)=>{const e=document.createElementNS(NS,t); for(const k in a) e.setAttribute(k,a[k]); svg.appendChild(e); return e;};
+    for(let i=0;i<=4;i++){ const y=T+ih-ih*i/4; mk('line',{x1:L,x2:W-R,y1:y,y2:y,class:'gl'}); const tx=mk('text',{x:L-6,y:y+4,'text-anchor':'end'}); tx.textContent=step*i; }
+    const gw=iw/days.length, bw=Math.min(18,gw*0.32);
+    days.forEach((d,i)=>{
+      const cx=L+gw*i+gw/2;
+      const hv=ih*d.visitors/top, hr=ih*d.reservations/top;
+      mk('rect',{x:cx-bw-1,y:T+ih-hv,width:bw,height:Math.max(hv,0),class:'bv',rx:2});
+      mk('rect',{x:cx+1,y:T+ih-hr,width:bw,height:Math.max(hr,0),class:'br',rx:2});
+      const tx=mk('text',{x:cx,y:H-8,'text-anchor':'middle'}); tx.textContent=String(d.day).slice(5).replace('-','.');
+      const ti=document.createElementNS(NS,'title'); ti.textContent=`${d.day} · 순방문자 ${d.visitors} · 사전예약 ${d.reservations}`; svg.lastChild.appendChild(ti);
+    });
+    box.appendChild(svg);
+  }
+  function renderRows(){
+    const q=$('#search').value.trim().replace(/-/g,''); const mask=$('#maskToggle').checked;
+    const list=q?rows.filter(r=>r.name.includes(q)||r.phone.includes(q)):rows;
+    const tb=$('#rows'); tb.textContent='';
+    list.forEach(r=>{
+      const tr=el('tr');
+      tr.appendChild(el('td',null,fmtTime(new Date(r.created_at))));
+      tr.appendChild(el('td',null,r.name));
+      tr.appendChild(el('td',null,fmtPhone(r.phone,mask)));
+      let tot=0;
+      MODELS.forEach(([,col])=>{ const v=r[col]||0; tot+=v; tr.appendChild(el('td',{class:'n q'+(v?'':' zero')},v)); });
+      tr.appendChild(el('td',{class:'n q tot'},tot));
+      tr.appendChild(el('td',null,r.source||'직접 접속'));
+      tr.appendChild(el('td',null,r.device==='mobile'?'모바일':r.device==='desktop'?'PC':(r.device||'—')));
+      const td=el('td'); const b=el('button',{type:'button',class:'btn btn-ghost'},'삭제');
+      let armed=null;
+      b.addEventListener('click',async()=>{
+        if(!armed){ b.textContent='정말 삭제'; b.classList.add('btn-danger'); armed=setTimeout(()=>{armed=null;b.textContent='삭제';b.classList.remove('btn-danger');},3000); return; }
+        clearTimeout(armed); b.disabled=true; b.textContent='삭제 중…';
+        try{ await api('/rest/v1/reservations?id=eq.'+encodeURIComponent(r.id),{method:'DELETE',headers:{Prefer:'return=minimal'}}); await load(); }
+        catch(e){ b.disabled=false; b.textContent='삭제'; b.classList.remove('btn-danger'); armed=null; showErr($('#dashErr'),'삭제하지 못했어요. 다시 시도해 주세요.'); }
+      });
+      td.appendChild(b); tr.appendChild(td); tb.appendChild(tr);
+    });
+    $('#rowsEmpty').hidden=rows.length>0;
+    $('#listCount').textContent=q?`${nf.format(list.length)}건 찾음 · 전체 ${nf.format(rows.length)}건`:`전체 ${nf.format(rows.length)}건`;
+  }
+  $('#search').addEventListener('input',renderRows);
+  $('#maskToggle').addEventListener('change',renderRows);
+  $('#csvBtn').addEventListener('click',()=>{
+    const head=['신청 시각','성함','휴대폰','S-65L','C-67M','C-68MH','합계','유입','기기'];
+    const esc=v=>{ const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+    const lines=[head.join(',')].concat(rows.map(r=>{
+      const t=MODELS.reduce((a,[,c])=>a+(r[c]||0),0);
+      return [fmtTime(new Date(r.created_at)),r.name,fmtPhone(r.phone,false),r.qty_s65l,r.qty_c67m,r.qty_c68mh,t,r.source||'직접 접속',r.device||''].map(esc).join(',');
+    }));
+    const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    const d=new Date(); a.download='루딕라이다_사전예약_'+d.toISOString().slice(0,10)+'.csv';
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  });
+
+  show(session?'dash':'login');
+})();
+</script>
+</body>
+</html>

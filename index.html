@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>루딕 라이다 사전예약</title>
+<meta name="description" content="작약꽃 × 루딕 라이다 라이브 네고 딜 사전예약. 라이브 특가는 방송 중 공개, 낚맛 회원 전용, 신청 비용 0원.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="작약꽃 × 루딕 라이다 라이브 네고 딜 사전예약">
+<meta property="og:description" content="기존 판매가 95,000원 · 라이브 특가는 방송 중 공개 · 낚맛 회원 전용 · 신청 비용 0원">
+<meta name="theme-color" content="#08070C">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 라이브 방송 화면처럼 — 고정된 사선 인디고 밴드와 로드 라인 위로 반투명 유리 패널이 스크롤되는 세로 한 장 (STRIKE LiDAR: 검정 + 루딕 퍼플 + 글라스) */
+:root{
+  --ink:#08070C; --carbon:#14111E; --plum:#2B1460; --violet:#7C3AED; --violet-pressed:#6A2BD6; --lavender:#B79CFF;
+  --flare:#FC5C2F; --foam:#F5F3FA; --mist:#BDB4D8; --tick:#7D72A8; --muted:#8E85AE; --white:#FFFFFF;
+  --field:#0E0C15; --line:#2A2440; --error:#FF8197; --success:#45E0A0;
+  --glass:rgba(20,17,30,.52); --glass-strong:rgba(18,15,28,.76);
+  --glass-edge:rgba(189,180,216,.20); --glass-hi:rgba(245,243,250,.08);
+  --picked:rgba(43,20,96,.88);
+  --glow-violet:rgba(124,58,237,.38); --glow-violet-soft:rgba(124,58,237,.20);
+  --outline-text:rgba(125,114,168,.30); --shadow:rgba(0,0,0,.40);
+  --font-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --font-heading:"Black Han Sans","IBM Plex Sans KR","Apple SD Gothic Neo",sans-serif;
+  --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.9,.1,1);
+  --sel:var(--violet); --acc:var(--lavender);
+  color-scheme:dark;
+}
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--ink);color:var(--foam);font-family:var(--font-body);font-size:16px;line-height:24px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.wrap{width:100%;max-width:560px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:0;text-wrap:balance}
+p{margin:0}
+.num{font-family:var(--font-display);font-variant-numeric:tabular-nums;line-height:1}
+
+/* 배경: 고정 레이어 */
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;
+  background:
+    radial-gradient(70% 38% at 100% 0%,var(--glow-violet),transparent 70%),
+    radial-gradient(60% 40% at 0% 70%,var(--glow-violet-soft),transparent 72%),
+    var(--ink)}
+.band{position:absolute;left:0;right:0;top:18%;height:52%;background:var(--plum);opacity:.85;
+  clip-path:polygon(0 46%,100% 0,100% 54%,0 100%)}
+.rod{position:absolute;inset:0;width:100%;height:100%}
+.rod{opacity:.38}
+.rod .blank{fill:url(#blankGrad)}
+.rod .grip{stroke:var(--line);stroke-width:10;stroke-linecap:round}
+.rod .seat{stroke:var(--violet);stroke-width:12}
+.rod .wrap-p{stroke:var(--violet);stroke-width:5}
+.rod .guide{fill:none;stroke:var(--mist);stroke-width:1.6}
+
+/* 유리 */
+.glass,.glass-strong{border:1px solid var(--glass-edge);border-radius:8px;
+  box-shadow:inset 0 1px 0 var(--glass-hi),0 10px 30px var(--shadow);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%)}
+.glass{background:var(--glass)}
+.glass-strong{background:var(--glass-strong);border-radius:12px}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .glass{background:var(--carbon)} .glass-strong{background:var(--carbon)}
+}
+
+/* 헤더 */
+.top{display:flex;align-items:center;justify-content:space-between;padding-block:20px 0}
+.top img{display:block;width:116px;height:auto}
+.tag-latin{font-family:var(--font-display);font-weight:800;font-size:13px;line-height:16px;letter-spacing:.08em;color:var(--mist);border:1px solid var(--tick);border-radius:2px;padding:4px 8px}
+
+/* 히어로 */
+.hero{position:relative;padding-block:40px 8px;display:grid;gap:16px;overflow-x:clip}
+.hero-ghost{position:absolute;right:16px;top:6px;z-index:0;pointer-events:none;
+  font-family:var(--font-display);font-weight:900;font-size:clamp(120px,36vw,210px);line-height:.8;
+  color:transparent;-webkit-text-stroke:1.5px var(--outline-text);transform:skewX(-8deg);transform-origin:0 100%;white-space:nowrap}
+.hero > *:not(.hero-ghost){position:relative;z-index:1}
+.live-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.live{display:inline-flex;align-items:center;gap:6px;background:var(--flare);color:var(--ink);
+  font-family:var(--font-display);font-weight:800;font-size:14px;line-height:16px;letter-spacing:.08em;padding:5px 9px 4px;border-radius:2px}
+.dot{position:relative;width:8px;height:8px;border-radius:999px;background:var(--ink)}
+.dot::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:2px solid var(--ink);animation:pulse 1.6s var(--ease) infinite}
+@keyframes pulse{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.6);opacity:0}}
+.when{font-size:14px;line-height:20px;font-weight:600;color:var(--mist)}
+.eyebrow{font-size:15px;line-height:20px;font-weight:600;color:var(--mist);letter-spacing:.01em}
+.eyebrow b{color:var(--foam);font-weight:700}
+.hero h1{font-size:clamp(40px,11.5vw,60px);line-height:1.08;letter-spacing:-.01em}
+.hero h1 .x{display:block;color:var(--lavender)}
+.lead{font-size:16px;line-height:26px;color:var(--mist);max-width:34em}
+.lead strong{color:var(--foam);font-weight:600}
+
+.price{position:relative;margin-top:8px;padding:20px 20px 22px;display:grid;gap:16px;
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 60px),calc(100% - 22px) 100%,0 100%)}
+.price-was{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.k{font-size:13px;line-height:18px;font-weight:600;color:var(--mist)}
+.was{display:flex;align-items:baseline;gap:3px;color:var(--mist)}
+.was .num{font-weight:800;font-size:28px;text-decoration:line-through;text-decoration-color:var(--lavender);text-decoration-thickness:3px}
+.was small{font-size:14px}
+.price-now{display:grid;gap:6px}
+.mystery{display:flex;align-items:baseline;gap:6px}
+.mystery .num{font-weight:900;font-size:clamp(56px,17vw,80px);color:var(--lavender);transform:skewX(-8deg);transform-origin:0 100%;letter-spacing:.01em}
+.mystery small{font-size:18px;font-weight:600;color:var(--mist)}
+.price .cap{font-size:14px;line-height:20px;color:var(--mist)}
+.limit{justify-self:start;font-size:13px;line-height:18px;font-weight:600;color:var(--foam);border:1px solid var(--tick);border-radius:2px;padding:3px 8px;margin-top:4px}
+
+/* 섹션 공통 */
+main{display:grid;gap:40px;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+.sec{display:grid;gap:16px}
+.sec-head{display:grid;gap:4px}
+.sec h2{font-size:24px;line-height:32px}
+.sec-head p{font-size:14px;line-height:20px;color:var(--mist)}
+.ico{width:24px;height:24px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* 혜택 */
+.perks{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.perk{display:flex;align-items:center;gap:14px;padding:16px}
+.perk-mark{width:48px;height:48px;flex:none;display:grid;place-items:center;border-radius:4px;background:var(--plum);color:var(--foam)}
+.perk-mark .num{font-weight:900;font-size:30px;color:var(--lavender)}
+.perk-mark .num small{font-family:var(--font-body);font-size:12px;font-weight:600;color:var(--foam);margin-left:1px}
+.perk strong{display:block;font-size:17px;line-height:24px;font-weight:700}
+.perk p{font-size:14px;line-height:20px;color:var(--mist)}
+.perk > div{min-width:0}
+
+/* 스펙 */
+.specs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.spec{padding:16px;display:grid;gap:8px;align-content:start}
+.spec.wide{grid-column:1/-1}
+.spec .num{font-weight:900;font-size:36px;color:var(--foam)}
+.spec .num small{font-size:20px;font-weight:800;color:var(--mist);margin-left:2px}
+.swatch{display:flex;gap:4px;height:36px;align-items:center}
+.swatch i{display:block;width:22px;height:22px;border-radius:2px;background:var(--violet);transform:skewX(-20deg)}
+.swatch i:nth-child(2){opacity:.7}.swatch i:nth-child(3){opacity:.45}
+.spec strong{font-size:15px;line-height:21px;font-weight:700}
+.spec p{font-size:13px;line-height:19px;color:var(--mist)}
+
+/* 모델 */
+.models{display:grid;gap:10px}
+.model{padding:18px;display:grid;gap:12px;transition:background .2s var(--ease),border-color .2s var(--ease)}
+.model.is-picked{background:var(--picked);border-color:var(--violet)}
+.model-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.code{font-family:var(--font-display);font-weight:900;font-size:30px;line-height:1;letter-spacing:.01em}
+.type{font-size:13px;line-height:18px;font-weight:600;color:var(--foam);border:1px solid var(--tick);border-radius:2px;padding:3px 8px}
+.len{display:flex;align-items:baseline;gap:4px}
+.len .num{font-weight:800;font-size:40px;color:var(--foam)}
+.model.is-picked .len .num{color:var(--lavender)}
+.len small{font-size:16px;font-weight:600;color:var(--mist)}
+.len .ft{margin-left:10px;font-family:var(--font-display);font-weight:800;font-size:20px;color:var(--mist)}
+.model p{font-size:15px;line-height:23px;color:var(--mist)}
+.model.is-picked p{color:var(--foam)}
+.model-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--glass-edge)}
+.reel{font-size:13px;line-height:18px;font-weight:600;color:var(--mist)}
+.model.is-picked .reel{color:var(--foam)}
+
+/* 버튼 */
+.btn{appearance:none;border:0;cursor:pointer;font:inherit;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;border-radius:4px;transition:transform .12s var(--ease),background .12s var(--ease)}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--lavender);outline-offset:2px}
+.btn-primary{width:100%;height:52px;background:var(--violet);color:var(--white);font-size:16px;line-height:20px;font-weight:700}
+.btn-primary:active{background:var(--violet-pressed)}
+.btn-primary:disabled{opacity:.6;cursor:progress}
+.btn-primary .num{font-size:20px;font-weight:900}
+.btn-sec{height:44px;padding:0 16px;background:transparent;color:var(--foam);border:1px solid var(--tick);font-size:14px;line-height:18px;font-weight:700}
+.btn-sec[aria-pressed="true"]{background:var(--violet);color:var(--white);border-color:var(--violet)}
+
+/* 폼 */
+.panel{padding:24px 20px}
+.panel h2{font-size:24px;line-height:32px}
+.panel .sub{margin-top:6px;font-size:14px;line-height:20px;color:var(--mist)}
+form{margin-top:20px;display:grid;gap:20px}
+.field{display:grid;gap:8px;border:0;margin:0;padding:0;min-width:0}
+.field label,.field legend{font-size:13px;line-height:18px;font-weight:600;color:var(--foam);padding:0}
+.field legend{margin-bottom:8px}
+.input{width:100%;height:48px;padding:0 14px;background:var(--field);color:var(--foam);border:1px solid var(--tick);border-radius:4px;font:inherit;font-size:16px}
+.input::placeholder{color:var(--muted)}
+.input[aria-invalid="true"]{border-color:var(--error)}
+.hint{font-size:13px;line-height:18px;color:var(--mist)}
+.err{display:flex;align-items:center;gap:6px;font-size:13px;line-height:18px;font-weight:600;color:var(--error)}
+.err .ico{width:16px;height:16px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.opt{position:relative;cursor:pointer}
+.opt input{position:absolute;opacity:0;width:1px;height:1px}
+.opt span{display:grid;gap:2px;place-items:center;text-align:center;min-height:60px;padding:8px 4px;border:1px solid var(--tick);border-radius:4px;background:var(--field);transition:background .2s var(--ease)}
+.opt b{font-family:var(--font-display);font-weight:900;font-size:20px;line-height:1}
+.opt small{font-size:12px;line-height:16px;font-weight:600;color:var(--mist)}
+.opt input:checked + span{background:var(--violet);border-color:var(--violet);color:var(--white)}
+.opt input:checked + span small{color:var(--white)}
+.opt input:focus-visible + span{outline:2px solid var(--lavender);outline-offset:2px}
+.seg[aria-invalid="true"] .opt span{border-color:var(--error)}
+.cart{display:grid;gap:8px}
+.cart-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 8px 8px 14px;border:1px solid var(--tick);border-radius:4px;background:var(--field);transition:border-color .2s var(--ease)}
+.cart-row.has{border-color:var(--sel)}
+.cart[aria-invalid="true"] .cart-row{border-color:var(--error)}
+.cart-name{display:grid;gap:3px;min-width:0}
+.cart-name b{font-family:var(--font-display);font-weight:900;font-size:22px;line-height:1}
+.cart-name small{font-size:12px;line-height:16px;font-weight:600;color:var(--mist)}
+.step{display:flex;align-items:center;gap:2px;flex:none}
+.step-btn{appearance:none;width:44px;height:44px;border-radius:4px;border:1px solid var(--tick);background:transparent;color:var(--foam);cursor:pointer;display:grid;place-items:center;padding:0}
+.step-btn .ico{width:20px;height:20px}
+.step-btn:disabled{opacity:.4;cursor:not-allowed}
+.step-btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.step-btn:not(:disabled):active{transform:scale(.96)}
+.step-val{min-width:34px;text-align:center;font-family:var(--font-display);font-weight:900;font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
+.cart-row.has .step-val{color:var(--acc)}
+.cart-total{display:flex;align-items:baseline;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;padding-top:4px}
+.cart-total .sum{display:flex;align-items:baseline;gap:4px;font-size:14px;font-weight:600;color:var(--mist)}
+.cart-total .sum .num{font-size:26px;font-weight:900;color:var(--foam)}
+.cart-total .sum.full .num{color:var(--acc)}
+.cart-total .rule{font-size:13px;line-height:18px;color:var(--mist);min-width:0}
+
+.seg.qty .opt span{min-height:52px;grid-auto-flow:column;align-items:baseline;justify-content:center;gap:3px}
+
+.agree{display:grid;gap:4px;padding:14px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+.chk{display:flex;align-items:flex-start;gap:10px;min-height:44px;padding-block:10px;cursor:pointer;font-size:14px;line-height:20px}
+.chk input{appearance:none;flex:none;width:20px;height:20px;margin:0;border:1.5px solid var(--tick);border-radius:2px;background:transparent;display:grid;place-items:center;cursor:pointer}
+.chk input:checked{background:var(--violet);border-color:var(--violet)}
+.chk input:checked::after{content:"";width:10px;height:5px;border-left:2px solid var(--white);border-bottom:2px solid var(--white);transform:translateY(-1px) rotate(-45deg)}
+.chk.all{font-weight:700;font-size:15px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:2px}
+.req{color:var(--lavender);font-weight:700}
+details{margin:-4px 0 4px 30px;font-size:13px;line-height:19px;color:var(--mist)}
+summary{cursor:pointer;color:var(--mist);text-decoration:underline;text-underline-offset:3px;min-height:32px;display:flex;align-items:center;width:max-content}
+details dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px}
+details dt{color:var(--foam);font-weight:600}
+details dd{margin:0}
+.note{text-align:center;font-size:13px;line-height:18px;color:var(--mist);margin-top:-8px}
+
+/* 완료 */
+.done{display:grid;gap:16px;text-align:left}
+.done-mark{width:48px;height:48px;border-radius:999px;display:grid;place-items:center;background:var(--violet);color:var(--white)}
+.done h2:focus{outline:none}
+.done dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:10px 16px;padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+.done dt{font-size:13px;line-height:20px;font-weight:600;color:var(--mist)}
+.done dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.done .preview-note{font-size:12px;line-height:16px;color:var(--muted)}
+
+/* 회원 안내 */
+.member{padding:20px;display:grid;gap:10px;justify-items:start}
+.badge{font-size:12px;line-height:16px;font-weight:700;background:var(--violet);color:var(--white);padding:3px 8px;border-radius:2px}
+.member h3{font-size:20px;line-height:28px}
+.member p{font-size:14px;line-height:21px;color:var(--mist)}
+.member .btn-sec{margin-top:6px}
+
+.notes{display:grid;gap:8px}
+.notes h3{font-family:var(--font-body);font-size:13px;line-height:18px;font-weight:700;color:var(--mist)}
+.notes ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:13px;line-height:19px;color:var(--muted)}
+.foot{display:flex;align-items:center;gap:12px;padding-block:8px 0;font-size:12px;line-height:16px;color:var(--muted)}
+.foot img{width:80px;height:auto;opacity:.8}
+
+/* 하단 고정 CTA */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;
+  padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  background:var(--glass-strong);border-top:1px solid var(--glass-edge);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%);
+  transition:transform .32s var(--ease)}
+.dock .btn-primary{max-width:528px;margin-inline:auto;display:flex}
+.dock.is-away{transform:translateY(110%)}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (min-width:600px){
+  .perks{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="bg" aria-hidden="true">
+  <div class="band"></div>
+  <svg class="rod" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="blankGrad" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0" style="stop-color:var(--mist)"/>
+        <stop offset="1" style="stop-color:var(--foam)"/>
+      </linearGradient>
+    </defs>
+    <polygon class="blank" points="26.4,788.2 33.6,791.8 420.7,40.4 419.3,39.6"/>
+    <line class="grip" x1="30" y1="790" x2="88" y2="678"/>
+    <line class="seat" x1="96" y1="663" x2="113" y2="630"/>
+    <g id="guides"></g>
+  </svg>
+</div>
+
+<header class="top wrap">
+  <img src="assets/logo-white.webp" alt="낚맛 낚시의맛" width="232" height="57">
+  <span class="tag-latin">PRE-ORDER</span>
+</header>
+
+<main>
+  <section class="hero wrap" aria-labelledby="hero-title">
+    <span class="hero-ghost" aria-hidden="true">LiDAR</span>
+    <div class="live-row">
+      <span class="live"><i class="dot"></i>LIVE</span>
+      <span class="when">이번 주말 라이브 방송</span>
+    </div>
+    <p class="eyebrow"><b>작약꽃</b> × 낚맛 라이브 네고 딜</p>
+    <h1 id="hero-title">루딕 라이다<span class="x">사전예약</span></h1>
+    <p class="lead">인플루언서 <strong>작약꽃</strong>과 커넥트제로 <strong>이승엽 대표</strong>가 라이브에서 직접 가격을 네고해요. 특가는 방송 중에 공개돼요.</p>
+
+    <div class="price glass">
+      <div class="price-was">
+        <span class="k">기존 판매가</span>
+        <span class="was"><span class="num">95,000</span><small>원</small></span>
+      </div>
+      <div class="price-now">
+        <span class="k">라이브 특가</span>
+        <span class="mystery"><span class="num" aria-label="방송 중 공개">??,???</span><small>원</small></span>
+        <span class="limit">모델 상관없이 1인당 3개</span>
+        <p class="cap">라이브 시작 알림과 전용 특가 링크를 사전예약자에게 먼저 보내드려요.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec wrap" aria-labelledby="perk-title">
+    <div class="sec-head">
+      <h2 id="perk-title">사전예약하면 이렇게 받아요</h2>
+      <p>낚맛 앱 회원 전용 혜택이에요</p>
+    </div>
+    <ul class="perks">
+      <li class="perk glass">
+        <span class="perk-mark"><svg class="ico" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></span>
+        <div><strong>라이브 시작 알림톡</strong><p>방송이 시작되면 가입한 번호로 바로 알려드려요.</p></div>
+      </li>
+      <li class="perk glass">
+        <span class="perk-mark"><svg class="ico" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></span>
+        <div><strong>사전예약자 전용 특가 링크</strong><p>라이브 특가로 살 수 있는 시크릿 링크를 보내드려요.</p></div>
+      </li>
+      <li class="perk glass">
+        <span class="perk-mark"><span class="num">0<small>원</small></span></span>
+        <div><strong>신청 비용 없음</strong><p>사전예약 단계에서는 결제가 진행되지 않아요.</p></div>
+      </li>
+    </ul>
+  </section>
+
+  <section class="sec wrap" aria-labelledby="spec-title">
+    <div class="sec-head">
+      <h2 id="spec-title">루딕 라이다는 이런 로드예요</h2>
+      <p>배스로드 · 전 모델 공통</p>
+    </div>
+    <div class="specs">
+      <div class="spec glass wide">
+        <span class="num">30<small>t</small></span>
+        <strong>30톤 카본 믹스 블랭크</strong>
+        <p>가벼운 무게감에 바닥 감도까지 손으로 전해져요.</p>
+      </div>
+      <div class="spec glass">
+        <span class="num">FUJI</span>
+        <strong>신형 후지 가이드</strong>
+        <p>라인 트러블을 줄이고 비거리를 살려줘요.</p>
+      </div>
+      <div class="spec glass">
+        <span class="swatch" aria-hidden="true"><i></i><i></i><i></i></span>
+        <strong>루딕 퍼플 디자인</strong>
+        <p>필드에서 눈에 띄는 퍼플 포인트 컬러예요.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec wrap" aria-labelledby="model-title">
+    <div class="sec-head">
+      <h2 id="model-title">모델 라인업</h2>
+      <p>3종 · 모델 상관없이 1인당 3개까지 담을 수 있어요</p>
+    </div>
+    <div class="models">
+      <article class="model glass" data-model="S-65L">
+        <div class="model-top"><span class="code">S-65L</span><span class="type">스피닝 · 라이트</span></div>
+        <div class="len"><span class="num">1.95</span><small>m</small><span class="ft">6'5"</span></div>
+        <p>섬세한 피네스 채비에 맞아요. 입문자와 여성 앵글러에게 추천하고, 볼락·우럭 같은 바다 라이트 게임에도 쓸 수 있어요.</p>
+        <div class="model-foot"><span class="reel">스피닝 릴 전용</span><button type="button" class="btn btn-sec" data-pick="S-65L" aria-pressed="false">이 모델로 신청하기</button></div>
+      </article>
+      <article class="model glass" data-model="C-67M">
+        <div class="model-top"><span class="code">C-67M</span><span class="type">베이트 · 미디엄</span></div>
+        <div class="len"><span class="num">2.01</span><small>m</small><span class="ft">6'7"</span></div>
+        <p>웜부터 하드베이트까지 두루 쓰는 올라운드 베스트셀러예요.</p>
+        <div class="model-foot"><span class="reel">베이트 릴 전용</span><button type="button" class="btn btn-sec" data-pick="C-67M" aria-pressed="false">이 모델로 신청하기</button></div>
+      </article>
+      <article class="model glass" data-model="C-68MH">
+        <div class="model-top"><span class="code">C-68MH</span><span class="type">베이트 · 미디엄헤비</span></div>
+        <div class="len"><span class="num">2.03</span><small>m</small><span class="ft">6'8"</span></div>
+        <p>헤비 커버(수초·장애물이 빽빽한 곳) 공략에 맞아요. 바이트가 또렷하게 전해지고, 허리힘이 강해 런커(대형 배스)도 버텨내요.</p>
+        <div class="model-foot"><span class="reel">베이트 릴 전용</span><button type="button" class="btn btn-sec" data-pick="C-68MH" aria-pressed="false">이 모델로 신청하기</button></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="sec wrap" id="reserve" aria-labelledby="form-title">
+    <div class="panel glass-strong">
+      <div id="formView">
+        <h2 id="form-title">사전예약 신청</h2>
+        <p class="sub">성함과 낚맛 가입 휴대폰 번호를 입력하고, 희망 모델을 담아 주세요.</p>
+        <form id="f" novalidate>
+          <div class="field">
+            <label for="name">성함</label>
+            <input class="input" id="name" name="name" autocomplete="name" placeholder="홍길동" aria-describedby="name-err">
+            <p class="err" id="name-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+          </div>
+          <div class="field">
+            <label for="phone">낚맛 가입 휴대폰 번호</label>
+            <input class="input" id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="010-1234-5678" maxlength="13" aria-describedby="phone-hint phone-err">
+            <p class="hint" id="phone-hint">낚맛 앱에 가입한 번호와 같아야 특가 링크를 받을 수 있어요.</p>
+            <p class="err" id="phone-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+          </div>
+          <fieldset class="field">
+            <legend>희망 모델과 수량</legend>
+            <div class="cart" id="cart" aria-describedby="cart-rule cart-err">
+              <div class="cart-row" data-model="S-65L">
+                <div class="cart-name"><b>S-65L</b><small>스피닝 · 라이트</small></div>
+                <div class="step">
+                  <button type="button" class="step-btn" data-dec aria-label="S-65L 1개 빼기"><svg class="ico" viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+                  <output class="step-val" aria-live="polite">0</output>
+                  <button type="button" class="step-btn" data-inc aria-label="S-65L 1개 더하기"><svg class="ico" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
+                </div>
+              </div>
+              <div class="cart-row" data-model="C-67M">
+                <div class="cart-name"><b>C-67M</b><small>베이트 · 미디엄</small></div>
+                <div class="step">
+                  <button type="button" class="step-btn" data-dec aria-label="C-67M 1개 빼기"><svg class="ico" viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+                  <output class="step-val" aria-live="polite">0</output>
+                  <button type="button" class="step-btn" data-inc aria-label="C-67M 1개 더하기"><svg class="ico" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
+                </div>
+              </div>
+              <div class="cart-row" data-model="C-68MH">
+                <div class="cart-name"><b>C-68MH</b><small>베이트 · 미디엄헤비</small></div>
+                <div class="step">
+                  <button type="button" class="step-btn" data-dec aria-label="C-68MH 1개 빼기"><svg class="ico" viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+                  <output class="step-val" aria-live="polite">0</output>
+                  <button type="button" class="step-btn" data-inc aria-label="C-68MH 1개 더하기"><svg class="ico" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
+                </div>
+              </div>
+            </div>
+            <div class="cart-total">
+              <span class="sum" id="cart-sum">합계 <span class="num" id="cart-n">0</span>/ 3개</span>
+              <span class="rule" id="cart-rule">모델 상관없이 1인당 3개까지</span>
+            </div>
+            <p class="err" id="cart-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+          </fieldset>
+          <div class="agree">
+            <label class="chk all"><input type="checkbox" id="ag-all"><span>필수 항목 모두 동의</span></label>
+            <label class="chk"><input type="checkbox" id="ag-privacy" class="ag"><span><span class="req">[필수]</span> 개인정보 수집·이용 동의</span></label>
+            <details>
+              <summary>내용 보기</summary>
+              <dl>
+                <dt>항목</dt><dd>성함, 휴대폰 번호, 희망 모델·수량</dd>
+                <dt>목적</dt><dd>사전예약 확인, 낚맛 회원 확인, 라이브 알림·특가 링크 발송</dd>
+                <dt>보유</dt><dd>프로모션 종료 후 파기</dd>
+              </dl>
+              <p style="margin-top:6px">동의하지 않을 수 있지만, 이 경우 사전예약을 할 수 없어요.</p>
+            </details>
+            <label class="chk"><input type="checkbox" id="ag-notify" class="ag"><span><span class="req">[필수]</span> 라이브 알림·특가 링크 수신 동의 (알림톡·문자)</span></label>
+            <p class="err" id="agree-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+          </div>
+          <button type="submit" class="btn btn-primary" id="submit">사전예약 신청하기</button>
+          <p class="err" id="submit-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+          <p class="note">결제는 진행되지 않아요 · 신청 비용 0원</p>
+        </form>
+      </div>
+
+      <div id="doneView" class="done" hidden>
+        <span class="done-mark"><svg class="ico" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <h2 id="doneTitle" tabindex="-1">사전예약이 접수됐어요</h2>
+        <p class="sub" style="color:var(--mist);font-size:15px;line-height:22px">라이브가 시작되면 가입한 번호로 알림톡을 보내드릴게요. 특가 링크도 함께 보내드려요.</p>
+        <dl>
+          <dt>성함</dt><dd id="d-name"></dd>
+          <dt>휴대폰</dt><dd id="d-phone"></dd>
+          <dt>희망 모델</dt><dd id="d-model"></dd>
+          <dt>합계</dt><dd id="d-qty"></dd>
+        </dl>
+        <button type="button" class="btn btn-sec" id="editBtn">신청 내용 수정하기</button>
+        <p class="preview-note" id="previewNote">미리보기 페이지라 신청 내용은 저장되지 않아요.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec wrap" aria-labelledby="member-title">
+    <div class="member glass">
+      <span class="badge">낚맛 회원 전용</span>
+      <h3 id="member-title">아직 낚맛 회원이 아니라면</h3>
+      <p>낚맛 앱을 설치하고 가입한 뒤, 가입한 휴대폰 번호로 사전예약해 주세요. 앱스토어·구글플레이에서 '낚맛'을 검색해도 찾을 수 있어요.</p>
+      <a class="btn btn-sec" href="https://app.nakmat.com" target="_blank" rel="noopener">낚맛 앱 설치하기</a>
+    </div>
+  </section>
+
+  <section class="wrap notes" aria-labelledby="notes-title">
+    <h3 id="notes-title">유의사항</h3>
+    <ul>
+      <li>사전예약 단계에서는 결제가 진행되지 않아요.</li>
+      <li>라이브 특가 금액은 방송 중에 공개돼요.</li>
+      <li>라이브 특가 구매는 모델 상관없이 1인당 총 3개로 제한돼요.</li>
+      <li>낚맛 앱 회원 전용 프로모션이에요. 가입한 번호와 다른 번호로 신청하면 특가 링크를 받을 수 없어요.</li>
+    </ul>
+    <div class="foot">
+      <img src="assets/logo-white.webp" alt="" width="232" height="57">
+      <span>주식회사 커넥트제로</span>
+    </div>
+  </section>
+</main>
+
+<div class="dock" id="dock">
+  <button type="button" class="btn btn-primary" id="dockBtn">사전예약 신청하기 · <span class="num">0</span>원</button>
+</div>
+
+<script src="config.js"></script>
+<script>
+(()=>{
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // 로드 가이드 링 (배경 일러스트)
+  const g=$('#guides'), NS='http://www.w3.org/2000/svg';
+  const ux=.4615, uy=-.8876, nx=.8876, ny=.4615;
+  [[.30,7],[.42,5.6],[.53,4.6],[.63,3.8],[.72,3.2],[.80,2.7],[.87,2.3],[.93,2]].forEach(([t,r])=>{
+    const px=30+390*t, py=790-750*t;
+    const c=document.createElementNS(NS,'circle');
+    c.setAttribute('cx',(px+nx*(r+4)).toFixed(1)); c.setAttribute('cy',(py+ny*(r+4)).toFixed(1)); c.setAttribute('r',r);
+    c.setAttribute('class','guide'); g.appendChild(c);
+    const w=document.createElementNS(NS,'line');
+    w.setAttribute('x1',(px-ux*4).toFixed(1)); w.setAttribute('y1',(py-uy*4).toFixed(1));
+    w.setAttribute('x2',(px+ux*4).toFixed(1)); w.setAttribute('y2',(py+uy*4).toFixed(1));
+    w.setAttribute('class','wrap-p'); g.appendChild(w);
+  });
+
+  // ---- 접수 서버(Supabase) ----
+  const CFG=window.LUDIC_CONFIG||{};
+  const LIVE=!!(CFG.supabaseUrl&&CFG.supabaseAnonKey);
+  const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+  let vid=store.get('ll_vid');
+  if(!vid){vid=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2); store.set('ll_vid',vid);}
+  const qs=new URLSearchParams(location.search);
+  let refHost=''; try{ if(document.referrer){const h=new URL(document.referrer).hostname; if(h!==location.hostname) refHost=h;} }catch(e){}
+  const source=(qs.get('utm_source')||qs.get('src')||refHost||'').slice(0,120);
+  const device=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)?'mobile':'desktop';
+  function rpc(fn,body,keepalive){
+    return fetch(CFG.supabaseUrl.replace(/\/$/,'')+'/rest/v1/rpc/'+fn,{method:'POST',keepalive:!!keepalive,
+      headers:{'apikey':CFG.supabaseAnonKey,'Authorization':'Bearer '+CFG.supabaseAnonKey,'Content-Type':'application/json'},
+      body:JSON.stringify(body)}).then(async r=>{ if(!r.ok) throw new Error('http_'+r.status); const t=await r.text(); return t?JSON.parse(t):null; });
+  }
+  const sent={};
+  function track(ev){
+    if(!LIVE||sent[ev]) return; sent[ev]=1;
+    rpc('track_event',{p_visitor:vid,p_event:ev,p_path:location.pathname,p_source:source||null,p_referrer:document.referrer||null,p_device:device},true).catch(()=>{});
+  }
+  track('view');
+  if(LIVE){ $('#editBtn').hidden=true; $('#previewNote').hidden=true; }
+
+  const form=$('#f'), name=$('#name'), phone=$('#phone');
+  const cards=$$('.model'), rows=$$('.cart-row'), MAX=3;
+  const qty={}; rows.forEach(r=>{qty[r.dataset.model]=0;});
+  const agAll=$('#ag-all'), agP=$('#ag-privacy'), agN=$('#ag-notify');
+  const dock=$('#dock'); let submitted=false;
+
+  function setErr(key,msg){
+    const el=$('#'+key+'-err'); el.hidden=!msg; el.querySelector('span').textContent=msg||'';
+    const target={name:name,phone:phone,cart:$('#cart')}[key];
+    if(target) target.setAttribute('aria-invalid',msg?'true':'false');
+  }
+  const total=()=>Object.values(qty).reduce((a,b)=>a+b,0);
+  function render(){
+    const t=total();
+    rows.forEach(r=>{
+      const q=qty[r.dataset.model];
+      r.querySelector('.step-val').textContent=q;
+      r.classList.toggle('has',q>0);
+      r.querySelector('[data-dec]').disabled=q===0;
+      r.querySelector('[data-inc]').disabled=t>=MAX;
+    });
+    $('#cart-n').textContent=t;
+    $('#cart-sum').classList.toggle('full',t>=MAX);
+    $('#cart-rule').textContent=t>=MAX?'3개를 모두 담았어요. 다른 모델을 담으려면 하나를 빼 주세요.':'모델 상관없이 1인당 3개까지';
+    cards.forEach(c=>{
+      const q=qty[c.dataset.model], b=c.querySelector('[data-pick]');
+      c.classList.toggle('is-picked',q>0);
+      b.setAttribute('aria-pressed',q>0?'true':'false');
+      b.textContent=q>0?q+'개 담았어요':'이 모델 담기';
+    });
+    if(t>0) setErr('cart','');
+  }
+  rows.forEach(r=>{
+    const m=r.dataset.model;
+    r.querySelector('[data-inc]').addEventListener('click',()=>{ if(total()<MAX){qty[m]++; render();} });
+    r.querySelector('[data-dec]').addEventListener('click',()=>{ if(qty[m]>0){qty[m]--; render();} });
+  });
+  function goForm(){
+    track('cta');
+    $('#reserve').scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+    if(!$('#doneView').hidden) return;
+    setTimeout(()=>{(name.value.trim()?phone:name).focus({preventScroll:true})},reduce?0:500);
+  }
+  $$('[data-pick]').forEach(b=>b.addEventListener('click',()=>{
+    const m=b.dataset.pick;
+    if(qty[m]===0&&total()<MAX){qty[m]=1; render();}
+    goForm();
+  }));
+  $('#dockBtn').addEventListener('click',goForm);
+  render();
+
+  phone.addEventListener('input',()=>{
+    const d=phone.value.replace(/\D/g,'').slice(0,11);
+    phone.value = d.length<4 ? d
+      : d.length<8 ? d.slice(0,3)+'-'+d.slice(3)
+      : d.length<11 ? d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6)
+      : d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+    if(!$('#phone-err').hidden) setErr('phone','');
+  });
+  name.addEventListener('input',()=>{ if(!$('#name-err').hidden) setErr('name',''); });
+
+  agAll.addEventListener('change',()=>{agP.checked=agN.checked=agAll.checked; if(agAll.checked) setErr('agree','');});
+  [agP,agN].forEach(a=>a.addEventListener('change',()=>{agAll.checked=agP.checked&&agN.checked; if(agAll.checked) setErr('agree','');}));
+
+  let busy=false; const submitBtn=$('#submit');
+  form.addEventListener('focusin',()=>track('form_start'));
+  form.addEventListener('submit',async e=>{
+    e.preventDefault(); if(busy) return; let first=null;
+    const n=name.value.trim();
+    if(!n){setErr('name','성함을 입력해 주세요'); first=first||name;} else setErr('name','');
+    const d=phone.value.replace(/\D/g,'');
+    if(!/^01[016789]\d{7,8}$/.test(d)){
+      setErr('phone', d?'휴대폰 번호를 010-1234-5678 형식으로 입력해 주세요':'낚맛에 가입한 휴대폰 번호를 입력해 주세요'); first=first||phone;
+    } else setErr('phone','');
+    const t=total();
+    if(t<1){setErr('cart','희망 모델을 1개 이상 담아 주세요'); first=first||rows[0].querySelector('[data-inc]');} else setErr('cart','');
+    if(!(agP.checked&&agN.checked)){setErr('agree','필수 동의 항목 2개에 모두 체크해 주세요'); first=first||(agP.checked?agN:agP);} else setErr('agree','');
+    if(first){first.focus(); return;}
+    setErr('submit','');
+    if(LIVE){
+      busy=true; submitBtn.disabled=true; submitBtn.textContent='신청 보내는 중…';
+      let res=null;
+      try{
+        res=await rpc('submit_reservation',{p_name:n,p_phone:d,p_s65l:qty['S-65L'],p_c67m:qty['C-67M'],p_c68mh:qty['C-68MH'],
+          p_agree_privacy:true,p_agree_notify:true,p_visitor:vid,p_source:source||null,p_referrer:document.referrer||null,p_device:device});
+      }catch(err){ res=null; }
+      busy=false; submitBtn.disabled=false; submitBtn.textContent='사전예약 신청하기';
+      if(!res){ setErr('submit','신청을 보내지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.'); submitBtn.focus(); return; }
+      if(!res.ok){
+        const map={duplicate:['phone','이 번호로 이미 사전예약이 접수돼 있어요'],
+          phone:['phone','휴대폰 번호를 010-1234-5678 형식으로 입력해 주세요'],
+          name:['name','성함을 40자 이내로 입력해 주세요'],
+          qty:['cart','모델 상관없이 1인당 3개까지 담을 수 있어요'],
+          agree:['agree','필수 동의 항목 2개에 모두 체크해 주세요']};
+        const [k,msg]=map[res.code]||['submit','신청을 저장하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요.'];
+        setErr(k,msg); ({name:name,phone:phone}[k]||submitBtn).focus(); return;
+      }
+      track('submit');
+    }
+    $('#d-name').textContent=n;
+    $('#d-phone').textContent=d.slice(0,3)+'-****-'+d.slice(-4);
+    $('#d-model').textContent=Object.entries(qty).filter(([,q])=>q>0).map(([m,q])=>m+' '+q+'개').join(' · ');
+    $('#d-qty').textContent=t+'개';
+    $('#formView').hidden=true; $('#doneView').hidden=false;
+    submitted=true; dock.classList.add('is-away');
+    $('#doneTitle').focus({preventScroll:true});
+    $('#reserve').scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
+  });
+  $('#editBtn').addEventListener('click',()=>{
+    $('#doneView').hidden=true; $('#formView').hidden=false; name.focus();
+  });
+
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(es=>{
+      es.forEach(en=>{ if(!submitted) dock.classList.toggle('is-away',en.isIntersecting); });
+    },{threshold:.15}).observe($('#reserve'));
+  }
+})();
+</script>
+</body>
+</html>

@@ -86,6 +86,10 @@ begin
   if s < 0 or c < 0 or h < 0 or s + c + h < 1 or s + c + h > 3 then
     return json_build_object('ok', false, 'code', 'qty');
   end if;
+  -- 품절 모델(S-65L, C-67M)은 신청을 받지 않는다. 다시 열 때는 index.html의 SOLD_OUT도 함께 고친다
+  if s > 0 or c > 0 then
+    return json_build_object('ok', false, 'code', 'soldout');
+  end if;
   insert into reservations (name, phone, qty_s65l, qty_c67m, qty_c68mh,
                             agree_privacy, agree_notify, visitor_id, source, referrer, device)
   values (n, d, s, c, h, true, true,

@@ -168,6 +168,8 @@ main{display:grid;gap:40px;padding-bottom:calc(120px + env(safe-area-inset-botto
 .btn-primary .num{font-size:20px;font-weight:900}
 .btn-sec{height:44px;padding:0 16px;background:transparent;color:var(--foam);border:1px solid var(--tick);font-size:14px;line-height:18px;font-weight:700}
 .btn-sec[aria-pressed="true"]{background:var(--violet);color:var(--white);border-color:var(--violet)}
+.btn-sec:disabled{cursor:not-allowed;color:var(--muted);border-color:var(--line)}
+.model.is-soldout .code,.model.is-soldout .len,.model.is-soldout p{opacity:.45}
 
 /* 폼 */
 .panel{padding:24px 20px}
@@ -208,6 +210,9 @@ form{margin-top:20px;display:grid;gap:20px}
 .step-btn:not(:disabled):active{transform:scale(.96)}
 .step-val{min-width:34px;text-align:center;font-family:var(--font-display);font-weight:900;font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
 .cart-row.has .step-val{color:var(--acc)}
+.cart-row.is-soldout{border-color:var(--line)}
+.cart-row.is-soldout .cart-name{opacity:.45}
+.sold-tag{display:inline-flex;align-items:center;height:44px;padding-right:6px;font-size:14px;font-weight:700;color:var(--mist)}
 .cart-total{display:flex;align-items:baseline;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;padding-top:4px}
 .cart-total .sum{display:flex;align-items:baseline;gap:4px;font-size:14px;font-weight:600;color:var(--mist)}
 .cart-total .sum .num{font-size:26px;font-weight:900;color:var(--foam)}
@@ -583,6 +588,18 @@ details dd{margin:0}
   const form=$('#f'), name=$('#name'), phone=$('#phone');
   const cards=$$('.model'), rows=$$('.cart-row'), MAX=3;
   const qty={}; rows.forEach(r=>{qty[r.dataset.model]=0;});
+  // 품절 모델은 담을 수 없게 막는다. 다시 열 때는 supabase/schema.sql의 submit_reservation도 함께 고친다
+  const SOLD_OUT=['S-65L','C-67M'];
+  const open=rows.filter(r=>!SOLD_OUT.includes(r.dataset.model));
+  rows.forEach(r=>{
+    if(!SOLD_OUT.includes(r.dataset.model)) return;
+    r.classList.add('is-soldout'); r.querySelector('.step').hidden=true;
+    r.insertAdjacentHTML('beforeend','<span class="sold-tag">품절</span>');
+  });
+  cards.forEach(c=>{
+    if(!SOLD_OUT.includes(c.dataset.model)) return;
+    c.classList.add('is-soldout'); c.querySelector('[data-pick]').disabled=true;
+  });
   const agAll=$('#ag-all'), agP=$('#ag-privacy'), agN=$('#ag-notify');
   const dock=$('#dock'); let submitted=false;
 
@@ -603,9 +620,10 @@ details dd{margin:0}
     });
     $('#cart-n').textContent=t;
     $('#cart-sum').classList.toggle('full',t>=MAX);
-    $('#cart-rule').textContent=t>=MAX?'3개를 모두 담았어요. 다른 모델을 담으려면 하나를 빼 주세요.':'모델 상관없이 1인당 3개까지';
+    $('#cart-rule').textContent=t>=MAX?'3개를 모두 담았어요.'+(open.length>1?' 다른 모델을 담으려면 하나를 빼 주세요.':''):'모델 상관없이 1인당 3개까지';
     cards.forEach(c=>{
       const q=qty[c.dataset.model], b=c.querySelector('[data-pick]');
+      if(b.disabled){ b.textContent='품절'; return; }
       c.classList.toggle('is-picked',q>0);
       b.setAttribute('aria-pressed',q>0?'true':'false');
       b.textContent=q>0?q+'개 담았어요':'이 모델 담기';
@@ -655,7 +673,7 @@ details dd{margin:0}
       setErr('phone', d?'휴대폰 번호를 010-1234-5678 형식으로 입력해 주세요':'낚맛에 가입한 휴대폰 번호를 입력해 주세요'); first=first||phone;
     } else setErr('phone','');
     const t=total();
-    if(t<1){setErr('cart','희망 모델을 1개 이상 담아 주세요'); first=first||rows[0].querySelector('[data-inc]');} else setErr('cart','');
+    if(t<1){setErr('cart','희망 모델을 1개 이상 담아 주세요'); first=first||open[0].querySelector('[data-inc]');} else setErr('cart','');
     if(!(agP.checked&&agN.checked)){setErr('agree','필수 동의 항목 2개에 모두 체크해 주세요'); first=first||(agP.checked?agN:agP);} else setErr('agree','');
     if(first){first.focus(); return;}
     setErr('submit','');
@@ -673,6 +691,7 @@ details dd{margin:0}
           phone:['phone','휴대폰 번호를 010-1234-5678 형식으로 입력해 주세요'],
           name:['name','성함을 40자 이내로 입력해 주세요'],
           qty:['cart','모델 상관없이 1인당 3개까지 담을 수 있어요'],
+          soldout:['cart','품절된 모델이 담겨 있어요. 페이지를 새로고침하고 다시 담아 주세요.'],
           agree:['agree','필수 동의 항목 2개에 모두 체크해 주세요']};
         const [k,msg]=map[res.code]||['submit','신청을 저장하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요.'];
         setErr(k,msg); ({name:name,phone:phone}[k]||submitBtn).focus(); return;

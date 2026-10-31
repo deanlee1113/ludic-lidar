@@ -155,7 +155,14 @@ summary{cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-h
 details dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px}
 details dt{color:var(--foam);font-weight:600}
 details dd{margin:0}
-.fine{font-size:13px;line-height:19px;color:var(--mist);text-align:center}
+/* 구매 방법 단계 */
+.howto{display:grid;gap:12px;padding:16px;border:1px solid var(--glass-edge);border-radius:10px;background:var(--glass);text-align:left;width:100%}
+.howto h2,.howto h3{font-size:17px;line-height:24px}
+.howto ol{list-style:none;margin:0;padding:0;display:grid;gap:10px;counter-reset:step}
+.howto li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:center;font-size:14px;line-height:21px;color:var(--mist);counter-increment:step;word-break:keep-all}
+.howto li::before{content:counter(step);width:28px;height:28px;border-radius:999px;background:var(--plum);color:var(--lavender);font-family:var(--font-display);font-weight:900;font-size:16px;display:grid;place-items:center}
+.howto li b{color:var(--foam);font-weight:700}
+.howto.flat{background:var(--field);border-color:var(--line)}
 .done{display:grid;gap:14px;justify-items:center;text-align:center;padding-block:8px}
 .done-mark{width:56px;height:56px;border-radius:999px;background:var(--plum);color:var(--success);display:grid;place-items:center}
 .done-mark .ico{width:28px;height:28px}
@@ -178,8 +185,17 @@ details dd{margin:0}
 <section class="hero wrap" aria-labelledby="title">
   <p class="eyebrow"><b>낚맛</b> 창고 털이 라이브</p>
   <h1 id="title">창고 털이<span class="x">판매 목록</span></h1>
-  <p class="lead">남은 수량과 가격을 확인하고, 구매하기를 눌러 접수해 주세요. 접수하면 담당자가 연락드려요.</p>
+  <p class="lead">남은 수량과 가격을 확인하고, 구매하기를 눌러 접수해 주세요.</p>
   <div class="stats" id="stats"></div>
+  <div class="howto">
+    <h2>구매 방법</h2>
+    <ol>
+      <li><span><b>구매하기</b>를 누르고 이름과 휴대폰 번호를 남겨 주세요</span></li>
+      <li><span>담당자가 <b>접수를 확인하고 연락</b>드려요</span></li>
+      <li><span>안내받은 <b>계좌로 입금</b>해 주세요</span></li>
+      <li><span><b>오후 3시 전에 입금</b>하면 당일 발송해요</span></li>
+    </ol>
+  </div>
 </section>
 
 <div class="bar">
@@ -209,7 +225,7 @@ details dd{margin:0}
 </main>
 
 <footer class="foot wrap">
-  <p class="note">수량은 실시간으로 바뀌어요. 접수만으로 결제되지 않고, 담당자가 연락드릴 때 결제를 안내해요.</p>
+  <p class="note">수량은 실시간으로 바뀌어요. 접수하면 담당자가 연락드리고, 계좌로 입금하면 오후 3시 전 입금 건은 당일 발송해요.</p>
   <img src="../assets/logo-white.webp" alt="" width="232" height="57">
 </footer>
 
@@ -261,9 +277,16 @@ details dd{margin:0}
           </details>
           <p class="err" id="ag-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
         </div>
+        <div class="howto flat">
+          <h3>접수하면 이렇게 진행돼요</h3>
+          <ol>
+            <li><span>담당자가 <b>접수를 확인하고 연락</b>드려요</span></li>
+            <li><span>안내받은 <b>계좌로 입금</b>해 주세요</span></li>
+            <li><span><b>오후 3시 전에 입금</b>하면 당일 발송해요</span></li>
+          </ol>
+        </div>
         <button type="submit" class="btn btn-primary" id="send">구매 접수하기</button>
         <p class="err" id="send-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
-        <p class="fine">접수만으로 결제되지 않아요. 담당자가 연락드려 결제를 안내해요.</p>
       </form>
     </div>
 
@@ -277,6 +300,14 @@ details dd{margin:0}
         <dt>금액</dt><dd id="dTot"></dd>
         <dt>연락처</dt><dd id="dPhone"></dd>
       </dl>
+      <div class="howto flat">
+        <h3>다음 순서</h3>
+        <ol>
+          <li><span>담당자가 <b>접수를 확인하고 연락</b>드려요</span></li>
+          <li><span>안내받은 <b>계좌로 입금</b>해 주세요</span></li>
+          <li><span><b>오후 3시 전에 입금</b>하면 당일 발송해요</span></li>
+        </ol>
+      </div>
       <button type="button" class="btn btn-primary" id="back">목록으로 돌아가기</button>
     </div>
   </div>
@@ -413,7 +444,7 @@ details dd{margin:0}
     try{ localStorage.setItem(LKEY,JSON.stringify({name:n,phone:bp.value})); }catch(e){}
     $('#dName').textContent=current.name; $('#dQty').textContent=qty+'개';
     $('#dTot').textContent=won(current.price*qty)+'원'; $('#dPhone').textContent=d.slice(0,3)+'-****-'+d.slice(-4);
-    $('#doneText').textContent='담당자가 '+d.slice(0,3)+'-****-'+d.slice(-4)+' 번호로 연락드려 결제를 안내해요.';
+    $('#doneText').textContent='담당자가 접수를 확인하고 '+d.slice(0,3)+'-****-'+d.slice(-4)+' 번호로 연락드려요.';
     $('#formView').hidden=true; $('#doneView').hidden=false; $('#doneTitle').focus();
     ag.checked=false; load();
   });

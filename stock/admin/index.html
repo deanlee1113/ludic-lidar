@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>창고 털이 주문 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* 주문 관리: 위에서 아래로 요약 숫자 → 상태 탭·검색 → 주문 카드 → 품목별 재고 (사전예약 관리자와 같은 토큰) */
+:root{
+  --ink:#08070C; --carbon:#14111E; --carbon-raised:#1C1829; --plum:#2B1460; --violet:#7C3AED; --violet-pressed:#6A2BD6; --lavender:#B79CFF;
+  --flare:#FC5C2F; --foam:#F5F3FA; --mist:#BDB4D8; --tick:#7D72A8; --muted:#8E85AE; --white:#FFFFFF;
+  --field:#0E0C15; --line:#2A2440; --error:#FF8197; --success:#45E0A0;
+  --font-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --font-heading:"Black Han Sans","IBM Plex Sans KR","Apple SD Gothic Neo",sans-serif;
+  --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.9,.1,1);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--ink);color:var(--foam);font-family:var(--font-body);font-size:15px;line-height:22px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2{font-family:var(--font-heading);font-weight:400;margin:0}
+p{margin:0}
+.num{font-family:var(--font-display);font-variant-numeric:tabular-nums;line-height:1}
+.ico{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button,input{font:inherit}
+.btn{appearance:none;border:0;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:4px;font-weight:700;font-size:14px;line-height:18px;transition:transform .12s var(--ease),background .12s var(--ease)}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible,input:focus-visible,.tab:focus-visible,summary:focus-visible{outline:2px solid var(--lavender);outline-offset:2px}
+.btn:disabled{opacity:.5;cursor:progress}
+.btn-primary{height:48px;padding:0 18px;background:var(--violet);color:var(--white);font-size:16px}
+.btn-primary:active{background:var(--violet-pressed)}
+.btn-sec{height:40px;padding:0 14px;background:transparent;color:var(--foam);border:1px solid var(--tick)}
+.btn-ghost{height:32px;padding:0 10px;background:transparent;color:var(--mist);border:1px solid var(--line);font-size:13px}
+.btn-ok{height:44px;padding:0 16px;background:var(--violet);color:var(--white)}
+.btn-line{height:44px;padding:0 14px;background:transparent;color:var(--foam);border:1px solid var(--tick)}
+.btn-danger{background:var(--error);color:var(--ink);border-color:var(--error)}
+.err{display:flex;align-items:center;gap:6px;font-size:13px;line-height:18px;font-weight:600;color:var(--error)}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ink);border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--ink)}
+.top-in{display:flex;align-items:center;justify-content:space-between;gap:12px;height:60px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand img{width:96px;height:auto;display:block}
+.brand span{font-size:14px;font-weight:600;color:var(--mist);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-actions{display:flex;align-items:center;gap:8px}
+.updated{font-size:12px;color:var(--muted);white-space:nowrap}
+
+.login{min-height:calc(100vh - 61px);display:grid;place-items:center;padding-block:40px}
+.login-card{width:100%;max-width:380px;background:var(--carbon);border:1px solid var(--line);border-radius:12px;padding:28px 24px;display:grid;gap:18px}
+.login-card h1{font-size:24px;line-height:32px}
+.login-card .sub{font-size:14px;color:var(--mist);margin-top:4px}
+.field{display:grid;gap:6px}
+.field label{font-size:13px;font-weight:600}
+.input{width:100%;height:46px;padding:0 14px;background:var(--field);color:var(--foam);border:1px solid var(--tick);border-radius:4px;font-size:16px}
+.input::placeholder{color:var(--muted)}
+
+.dash{display:grid;gap:24px;padding-block:24px 64px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.kpi{background:var(--carbon);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:8px;min-width:0}
+.kpi .k{font-size:13px;font-weight:600;color:var(--mist)}
+.kpi .v{display:flex;align-items:baseline;gap:4px}
+.kpi .v .num{font-size:34px;font-weight:900}
+.kpi .v small{font-size:13px;color:var(--mist)}
+.kpi .h{font-size:12px;line-height:16px;color:var(--muted)}
+.kpi.hero{background:var(--plum);border-color:var(--violet)}
+.kpi.hero .v .num{color:var(--lavender)}
+.kpi.hero .k,.kpi.hero .h{color:var(--foam)}
+
+.sec{display:grid;gap:12px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sec-h h2{font-size:20px;line-height:28px}
+.sec-h p{font-size:13px;color:var(--muted)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tabs{display:flex;gap:4px;padding:4px;border-radius:8px;background:var(--field);border:1px solid var(--line)}
+.tab{appearance:none;border:0;border-radius:6px;background:transparent;color:var(--mist);font-size:14px;font-weight:700;min-height:40px;padding:0 14px;cursor:pointer}
+.tab small{font-family:var(--font-display);font-size:16px;font-weight:800;margin-left:4px}
+.tab[aria-selected="true"]{background:var(--violet);color:var(--white)}
+.search{flex:1;min-width:200px;height:44px;padding:0 12px;background:var(--field);color:var(--foam);border:1px solid var(--tick);border-radius:4px;font-size:15px}
+.search::placeholder{color:var(--muted)}
+
+.orders{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+.card{background:var(--carbon);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:10px}
+.card.new{border-color:var(--lavender);box-shadow:0 0 0 1px var(--lavender)}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+.st{font-size:12px;line-height:16px;font-weight:700;padding:3px 8px;border-radius:2px}
+.st.pending{background:var(--flare);color:var(--ink)}
+.st.confirmed{background:var(--success);color:var(--ink)}
+.st.cancelled{background:var(--line);color:var(--mist)}
+.card .item b{display:block;font-size:16px;line-height:22px;font-weight:700}
+.card .item span{font-size:13px;color:var(--mist)}
+.money{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:10px 12px;border-radius:6px;background:var(--field)}
+.money .q{font-size:14px;color:var(--mist)}
+.money .q .num{font-size:20px;font-weight:900;color:var(--foam)}
+.money .t .num{font-size:22px;font-weight:900;color:var(--lavender)}
+.money .t small{font-size:13px;color:var(--mist)}
+.buyer{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.buyer b{font-size:16px}
+.tel{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 12px;border-radius:4px;border:1px solid var(--tick);color:var(--foam);text-decoration:none;font-weight:700;font-variant-numeric:tabular-nums}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.acts .btn{flex:1}
+.card.cancelled{opacity:.6}
+.empty{font-size:14px;color:var(--muted);padding:18px 0}
+
+details.stock{background:var(--carbon);border:1px solid var(--line);border-radius:10px}
+details.stock summary{cursor:pointer;padding:14px 16px;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:8px}
+details.stock summary span{font-weight:500;color:var(--muted);font-size:13px}
+.tbl-wrap{overflow-x:auto;border-top:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;font-weight:600;color:var(--mist);background:var(--carbon-raised)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td.left0{color:var(--muted)}
+td.hot{color:var(--lavender);font-weight:700}
+tr:last-child td{border-bottom:0}
+
+@media (max-width:760px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .updated{display:none}
+  .brand span{display:none}
+  .tabs{width:100%}
+  .tab{flex:1;padding:0 6px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div class="brand"><img src="../../assets/logo-white.webp" alt="낚맛" width="232" height="57"><span>창고 털이 주문 관리</span></div>
+    <div class="top-actions" id="topActions" hidden>
+      <span class="updated" id="updated"></span>
+      <button type="button" class="btn btn-sec" id="refreshBtn" aria-label="새로고침"><svg class="ico" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/></svg></button>
+      <button type="button" class="btn btn-ghost" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="login wrap" id="loginView">
+    <form class="login-card" id="loginForm" novalidate>
+      <div>
+        <h1>관리자 로그인</h1>
+        <p class="sub">판매 목록에서 들어온 구매 접수를 보고 처리할 수 있어요.</p>
+      </div>
+      <div class="field"><label for="uid">아이디</label><input class="input" id="uid" autocomplete="username" autocapitalize="off" spellcheck="false"></div>
+      <div class="field"><label for="pw">비밀번호</label><input class="input" id="pw" type="password" autocomplete="current-password"></div>
+      <p class="err" id="loginErr" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+      <button type="submit" class="btn btn-primary" id="loginBtn">로그인</button>
+    </form>
+  </section>
+
+  <div class="dash wrap" id="dashView" hidden>
+    <div class="kpis">
+      <div class="kpi hero"><span class="k">연락할 접수</span><span class="v"><span class="num" id="kPend">0</span><small>건</small></span><span class="h" id="kPendH"></span></div>
+      <div class="kpi"><span class="k">확정</span><span class="v"><span class="num" id="kConf">0</span><small>건</small></span><span class="h" id="kConfH"></span></div>
+      <div class="kpi"><span class="k">취소</span><span class="v"><span class="num" id="kCanc">0</span><small>건</small></span><span class="h">취소한 수량은 판매 목록에 다시 올라가요</span></div>
+      <div class="kpi"><span class="k">남은 재고</span><span class="v"><span class="num" id="kLeft">0</span><small>개</small></span><span class="h" id="kLeftH"></span></div>
+    </div>
+
+    <section class="sec" aria-labelledby="ordTitle">
+      <div class="sec-h"><h2 id="ordTitle">구매 접수</h2><p>접수하면 바로 수량이 빠지고, 취소하면 다시 돌아가요. 15초마다 새로 불러와요.</p></div>
+      <div class="tools">
+        <div class="tabs" role="tablist" aria-label="접수 상태">
+          <button type="button" class="tab" role="tab" data-f="pending">대기<small id="cPend">0</small></button>
+          <button type="button" class="tab" role="tab" data-f="confirmed">확정<small id="cConf">0</small></button>
+          <button type="button" class="tab" role="tab" data-f="cancelled">취소<small id="cCanc">0</small></button>
+          <button type="button" class="tab" role="tab" data-f="all">전체<small id="cAll">0</small></button>
+        </div>
+        <input class="search" id="search" type="search" placeholder="이름, 번호, 품목으로 찾기" aria-label="접수 검색">
+        <button type="button" class="btn btn-sec" id="csvBtn"><svg class="ico" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>엑셀(CSV)</button>
+      </div>
+      <p class="err" id="dashErr" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+      <div class="orders" id="orders"></div>
+      <p class="empty" id="ordersEmpty" hidden></p>
+    </section>
+
+    <details class="stock">
+      <summary>품목별 재고 <span id="stockSum"></span></summary>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>종류</th><th>브랜드</th><th>품명</th><th class="n">판매가</th><th class="n">시작 재고</th><th class="n">대기</th><th class="n">확정</th><th class="n">남음</th></tr></thead>
+          <tbody id="stockRows"></tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+</main>
+
+<script src="../../config.js"></script>
+<script>
+(()=>{
+  const $=s=>document.querySelector(s);
+  const CFG=window.LUDIC_CONFIG||{};
+  const BASE=(CFG.supabaseUrl||'').replace(/\/$/,''), KEY=CFG.supabaseAnonKey||'';
+  const SKEY='ll_admin_session';   // 사전예약 관리자와 같은 로그인을 쓴다
+  let session=null, orders=[], items=[], timer=null, filter='pending', seen=null;
+  try{ session=JSON.parse(sessionStorage.getItem(SKEY)||'null'); }catch(e){}
+  function save(s){ session=s; try{ s?sessionStorage.setItem(SKEY,JSON.stringify(s)):sessionStorage.removeItem(SKEY); }catch(e){} }
+  function showErr(el,msg){ el.hidden=!msg; el.querySelector('span').textContent=msg||''; }
+  function show(view){
+    $('#loginView').hidden=view!=='login'; $('#dashView').hidden=view!=='dash'; $('#topActions').hidden=view!=='dash';
+    if(view==='dash') start(); else { clearInterval(timer); timer=null; }
+  }
+
+  async function authReq(grant,body){
+    const r=await fetch(BASE+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){ const e=new Error(j.error_description||j.msg||j.error||'auth_failed'); e.status=r.status; throw e; }
+    return {access_token:j.access_token,refresh_token:j.refresh_token,expires_at:Date.now()+(j.expires_in||3600)*1000};
+  }
+  async function token(){
+    if(!session) throw new Error('nologin');
+    if(Date.now()>session.expires_at-60000){
+      try{ save(await authReq('refresh_token',{refresh_token:session.refresh_token})); }
+      catch(e){ save(null); show('login'); throw e; }
+    }
+    return session.access_token;
+  }
+  async function api(path,opt={}){
+    const t=await token();
+    const r=await fetch(BASE+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+t,'Content-Type':'application/json',...(opt.headers||{})}});
+    if(r.status===401){ save(null); show('login'); showErr($('#loginErr'),'로그인 시간이 지났어요. 다시 로그인해 주세요.'); throw new Error('expired'); }
+    const tx=await r.text(); let j=null; try{ j=tx?JSON.parse(tx):null; }catch(e){}
+    if(!r.ok){ const e=new Error((j&&(j.message||j.msg))||('http_'+r.status)); e.status=r.status; throw e; }
+    return j;
+  }
+
+  $('#loginForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const id=$('#uid').value.trim(), pw=$('#pw').value;
+    if(!id||!pw){ showErr($('#loginErr'),'아이디와 비밀번호를 입력해 주세요'); return; }
+    const email=id.includes('@')?id:id+'@'+(CFG.adminEmailDomain||'nakmat.com');
+    const btn=$('#loginBtn'); btn.disabled=true; btn.textContent='확인하는 중…'; showErr($('#loginErr'),'');
+    try{ save(await authReq('password',{email,password:pw})); $('#pw').value=''; show('dash'); }
+    catch(err){ showErr($('#loginErr'), err.status===400||err.status===401?'아이디 또는 비밀번호가 맞지 않아요':'로그인하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.'); }
+    finally{ btn.disabled=false; btn.textContent='로그인'; }
+  });
+  $('#logoutBtn').addEventListener('click',()=>{ save(null); show('login'); $('#uid').focus(); });
+
+  async function load(){
+    showErr($('#dashErr'),'');
+    try{
+      const [o,i]=await Promise.all([
+        api('/rest/v1/stock_orders?select=*,item:stock_items(kind,brand,name,price)&order=created_at.desc'),
+        api('/rest/v1/stock_items?select=*&order=kind.desc,sort.asc')
+      ]);
+      if(o.length===0&&i.length===0){ save(null); show('login'); showErr($('#loginErr'),'관리자 권한이 없는 계정이에요'); return; }
+      if(seen===null) seen=new Set(o.map(x=>x.id));   // 처음 연 뒤로 새로 들어온 접수만 강조
+      orders=o; items=i; render();
+      $('#updated').textContent='마지막 갱신 '+fmt(new Date(),true);
+    }catch(err){
+      if(err.message==='expired'||err.message==='nologin') return;
+      showErr($('#dashErr'),'데이터를 불러오지 못했어요. 새로고침을 눌러 다시 시도해 주세요.');
+    }
+  }
+  function start(){ load(); clearInterval(timer); timer=setInterval(()=>{ if(!document.hidden) load(); },15000); }
+  $('#refreshBtn').addEventListener('click',load);
+
+  const nf=new Intl.NumberFormat('ko-KR');
+  function fmt(d,short){
+    const o=short?{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Seoul'}:{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Seoul'};
+    return new Intl.DateTimeFormat('ko-KR',o).format(d);
+  }
+  const phone=p=>{ const d=String(p); return d.length===11?d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7):d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6); };
+  const kindLabel=k=>k==='reel'?'릴':'로드';
+  function el(tag,attrs,text){ const e=document.createElement(tag); if(attrs) for(const k in attrs) e.setAttribute(k,attrs[k]); if(text!=null) e.textContent=text; return e; }
+  const STATUS={pending:'대기',confirmed:'확정',cancelled:'취소'};
+
+  function render(){
+    const by=s=>orders.filter(o=>o.status===s);
+    const sum=list=>list.reduce((a,o)=>a+o.qty*o.item.price,0);
+    const pend=by('pending'), conf=by('confirmed'), canc=by('cancelled');
+    $('#kPend').textContent=pend.length; $('#kPendH').textContent=pend.length?nf.format(sum(pend))+'원 · '+pend.reduce((a,o)=>a+o.qty,0)+'개':'새 접수가 오면 여기에 보여요';
+    $('#kConf').textContent=conf.length; $('#kConfH').textContent=nf.format(sum(conf))+'원 · '+conf.reduce((a,o)=>a+o.qty,0)+'개';
+    $('#kCanc').textContent=canc.length;
+    $('#cPend').textContent=pend.length; $('#cConf').textContent=conf.length; $('#cCanc').textContent=canc.length; $('#cAll').textContent=orders.length;
+    document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.f===filter)));
+
+    // 품목별 재고
+    const held={};
+    orders.forEach(o=>{ if(o.status==='cancelled') return; held[o.item_id]=held[o.item_id]||{pending:0,confirmed:0}; held[o.item_id][o.status]+=o.qty; });
+    let leftR=0,leftD=0;
+    const tb=$('#stockRows'); tb.textContent='';
+    items.forEach(i=>{
+      const h=held[i.id]||{pending:0,confirmed:0}, left=Math.max(i.qty-h.pending-h.confirmed,0);
+      if(i.kind==='reel') leftR+=left; else leftD+=left;
+      const tr=el('tr');
+      [kindLabel(i.kind),i.brand,i.name].forEach(v=>tr.appendChild(el('td',null,v)));
+      tr.appendChild(el('td',{class:'n'},nf.format(i.price)));
+      tr.appendChild(el('td',{class:'n'},i.qty));
+      tr.appendChild(el('td',{class:'n'+(h.pending?' hot':'')},h.pending||'—'));
+      tr.appendChild(el('td',{class:'n'},h.confirmed||'—'));
+      tr.appendChild(el('td',{class:'n'+(left?'':' left0')},left||'품절'));
+      tb.appendChild(tr);
+    });
+    $('#kLeft').textContent=leftR+leftD; $('#kLeftH').textContent='릴 '+leftR+'개 · 로드 '+leftD+'개';
+    $('#stockSum').textContent=items.length+'종 · 남은 '+(leftR+leftD)+'개';
+
+    // 접수 카드
+    const term=$('#search').value.trim().replace(/-/g,'').toLowerCase();
+    const list=(filter==='all'?orders:by(filter)).filter(o=>!term||(o.name+o.phone+o.item.brand+o.item.name).toLowerCase().replace(/\s/g,'').includes(term.replace(/\s/g,'')));
+    const box=$('#orders'); box.textContent='';
+    list.forEach(o=>box.appendChild(card(o)));
+    const empty=$('#ordersEmpty');
+    empty.hidden=list.length>0;
+    empty.textContent=term?'찾는 접수가 없어요. 검색어를 바꿔 보세요.':{pending:'연락할 접수가 없어요. 새 접수가 들어오면 여기에 바로 보여요.',confirmed:'아직 확정한 접수가 없어요.',cancelled:'취소한 접수가 없어요.',all:'아직 들어온 접수가 없어요.'}[filter];
+  }
+  function card(o){
+    const c=el('article',{class:'card '+o.status+(seen&&!seen.has(o.id)&&o.status==='pending'?' new':'')});
+    const h=el('div',{class:'card-h'});
+    h.appendChild(el('span',{class:'st '+o.status},STATUS[o.status]));
+    h.appendChild(el('span',null,'#'+o.id+' · '+fmt(new Date(o.created_at))));
+    c.appendChild(h);
+    const it=el('div',{class:'item'}); it.appendChild(el('b',null,o.item.name)); it.appendChild(el('span',null,kindLabel(o.item.kind)+' · '+o.item.brand)); c.appendChild(it);
+    const m=el('div',{class:'money'});
+    const q=el('span',{class:'q'}); q.append('수량 '); q.appendChild(el('span',{class:'num'},o.qty)); q.append('개'); m.appendChild(q);
+    const t=el('span',{class:'t'}); t.appendChild(el('span',{class:'num'},nf.format(o.qty*o.item.price))); t.appendChild(el('small',null,'원')); m.appendChild(t);
+    c.appendChild(m);
+    const b=el('div',{class:'buyer'}); b.appendChild(el('b',null,o.name));
+    const tel=el('a',{class:'tel',href:'tel:'+o.phone}); tel.innerHTML='<svg class="ico" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>'; tel.append(phone(o.phone));
+    b.appendChild(tel); c.appendChild(b);
+    const a=el('div',{class:'acts'});
+    if(o.status==='pending'){ a.appendChild(act(o,'confirmed','확정','btn-ok')); a.appendChild(act(o,'cancelled','취소','btn-line',true)); }
+    if(o.status==='confirmed'){ a.appendChild(act(o,'pending','대기로 되돌리기','btn-line')); a.appendChild(act(o,'cancelled','취소','btn-line',true)); }
+    if(o.status==='cancelled'){ a.appendChild(act(o,'pending','취소 되돌리기','btn-line')); }
+    c.appendChild(a);
+    return c;
+  }
+  // 취소는 한 번 더 눌러야 실행된다(3초 안에)
+  function act(o,to,label,cls,confirmFirst){
+    const b=el('button',{type:'button',class:'btn '+cls},label);
+    let armed=null;
+    b.addEventListener('click',async()=>{
+      if(confirmFirst&&!armed){ b.textContent='정말 취소'; b.classList.add('btn-danger'); armed=setTimeout(()=>{armed=null;b.textContent=label;b.classList.remove('btn-danger');},3000); return; }
+      clearTimeout(armed); armed=null; b.disabled=true; b.textContent='처리 중…';
+      try{
+        const r=await api('/rest/v1/rpc/admin_set_order',{method:'POST',body:JSON.stringify({p_id:o.id,p_status:to})});
+        if(!r||!r.ok){ showErr($('#dashErr'), r&&r.code==='soldout'?'#'+o.id+' 품목이 이미 다 팔려서 되돌릴 수 없어요.':'#'+o.id+' 상태를 바꾸지 못했어요. 새로고침 후 다시 시도해 주세요.'); }
+        if(seen) seen.add(o.id);
+        await load();
+      }catch(e){ b.disabled=false; b.textContent=label; b.classList.remove('btn-danger'); showErr($('#dashErr'),'처리하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.'); }
+    });
+    return b;
+  }
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{ filter=t.dataset.f; render(); }));
+  $('#search').addEventListener('input',render);
+  $('#csvBtn').addEventListener('click',()=>{
+    const head=['접수번호','접수 시각','상태','종류','브랜드','품명','수량','금액','이름','휴대폰'];
+    const esc=v=>{ const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+    const lines=[head.join(',')].concat(orders.map(o=>[o.id,fmt(new Date(o.created_at)),STATUS[o.status],kindLabel(o.item.kind),o.item.brand,o.item.name,o.qty,o.qty*o.item.price,o.name,phone(o.phone)].map(esc).join(',')));
+    const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='창고털이_구매접수_'+new Date().toISOString().slice(0,10)+'.csv';
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  });
+
+  show(session?'dash':'login');
+})();
+</script>
+</body>
+</html>

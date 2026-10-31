@@ -4,23 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>낚맛 창고 털이 판매 목록</title>
-<meta name="description" content="낚맛 창고 털이 라이브 판매 목록. 릴과 로드의 남은 수량과 가격을 확인해 보세요.">
+<meta name="description" content="낚맛 창고 털이 라이브 판매 목록. 릴과 로드의 남은 수량과 가격을 확인하고 구매를 접수해 보세요.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="낚맛 창고 털이 판매 목록">
-<meta property="og:description" content="릴·로드 남은 수량과 가격을 확인해 보세요">
+<meta property="og:description" content="릴·로드 남은 수량과 가격을 확인하고 바로 구매 접수해 보세요">
 <meta name="theme-color" content="#08070C">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 <style>
-/* 라이브 판매 목록: 사전예약 페이지와 같은 검정 + 퍼플 + 글라스 디자인. 릴/로드 탭, 검색, 브랜드별 묶음 */
+/* 라이브 판매 목록: 사전예약 페이지와 같은 검정 + 퍼플 + 글라스 디자인. 릴/로드 탭, 검색, 브랜드별 묶음, 구매 접수 시트 */
 :root{
-  --ink:#08070C; --carbon:#14111E; --plum:#2B1460; --violet:#7C3AED; --lavender:#B79CFF;
+  --ink:#08070C; --carbon:#14111E; --plum:#2B1460; --violet:#7C3AED; --violet-pressed:#6A2BD6; --lavender:#B79CFF;
   --flare:#FC5C2F; --foam:#F5F3FA; --mist:#BDB4D8; --tick:#7D72A8; --muted:#8E85AE; --white:#FFFFFF;
-  --field:#0E0C15; --line:#2A2440;
+  --field:#0E0C15; --line:#2A2440; --error:#FF8197; --success:#45E0A0;
   --glass:rgba(20,17,30,.52); --glass-strong:rgba(18,15,28,.86);
   --glass-edge:rgba(189,180,216,.20); --glass-hi:rgba(245,243,250,.08);
-  --glow-violet:rgba(124,58,237,.38); --glow-violet-soft:rgba(124,58,237,.20); --shadow:rgba(0,0,0,.40);
+  --glow-violet:rgba(124,58,237,.38); --glow-violet-soft:rgba(124,58,237,.20); --shadow:rgba(0,0,0,.40); --scrim:rgba(8,7,12,.72);
   --font-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
   --font-heading:"Black Han Sans","IBM Plex Sans KR","Apple SD Gothic Neo",sans-serif;
   --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
@@ -31,9 +31,11 @@
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--ink);color:var(--foam);font-family:var(--font-body);font-size:16px;line-height:24px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-h1,h2{font-family:var(--font-heading);font-weight:400;margin:0}
+h1,h2,h3{font-family:var(--font-heading);font-weight:400;margin:0}
 p{margin:0}
+button,input{font:inherit}
 .num{font-family:var(--font-display);font-variant-numeric:tabular-nums;line-height:1}
+.ico{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .wrap{width:100%;max-width:560px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 
 .bg{position:fixed;inset:0;z-index:-1;overflow:hidden;
@@ -57,7 +59,7 @@ p{margin:0}
 .hero h1{font-size:clamp(40px,11.5vw,56px);line-height:1.08;letter-spacing:-.01em}
 .hero h1 .x{display:block;color:var(--lavender)}
 .lead{font-size:16px;line-height:26px;color:var(--mist)}
-.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;min-height:46px}
 .stat{display:flex;align-items:baseline;gap:6px;padding:10px 14px;border:1px solid var(--glass-edge);border-radius:8px;background:var(--glass);font-size:14px;font-weight:600;color:var(--mist)}
 .stat .num{font-size:24px;font-weight:900;color:var(--foam)}
 
@@ -66,15 +68,15 @@ p{margin:0}
   -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%)}
 .bar .wrap{display:grid;gap:10px}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;border-radius:8px;background:var(--field);border:1px solid var(--line)}
-.tab{appearance:none;border:0;border-radius:6px;background:transparent;color:var(--mist);font:inherit;font-size:16px;font-weight:700;
+.tab{appearance:none;border:0;border-radius:6px;background:transparent;color:var(--mist);font-size:16px;font-weight:700;
   min-height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .tab small{font-size:13px;font-weight:600;color:var(--muted)}
 .tab[aria-selected="true"]{background:var(--violet);color:var(--white)}
 .tab[aria-selected="true"] small{color:var(--foam)}
-.tab:focus-visible,.search input:focus-visible,.clear:focus-visible{outline:2px solid var(--lavender);outline-offset:2px}
+.tab:focus-visible,.search input:focus-visible,.btn:focus-visible,.buy:focus-visible,.step-btn:focus-visible,.chk input:focus-visible,.input:focus-visible,.x-btn:focus-visible{outline:2px solid var(--lavender);outline-offset:2px}
 .search{position:relative}
 .search svg{position:absolute;left:14px;top:50%;width:20px;height:20px;margin-top:-10px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round}
-.search input{width:100%;height:48px;padding:0 14px 0 42px;border-radius:8px;border:1px solid var(--tick);background:var(--field);color:var(--foam);font:inherit;font-size:16px}
+.search input{width:100%;height:48px;padding:0 14px 0 42px;border-radius:8px;border:1px solid var(--tick);background:var(--field);color:var(--foam);font-size:16px}
 .search input::placeholder{color:var(--muted)}
 
 .list{padding-block:20px 8px;display:grid;gap:22px}
@@ -83,26 +85,86 @@ p{margin:0}
 .brand h2 small{font-family:var(--font-body);font-size:13px;font-weight:600;color:var(--muted)}
 .items{list-style:none;margin:0;padding:0;border:1px solid var(--glass-edge);border-radius:10px;background:var(--glass);overflow:hidden;
   -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%)}
-.item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px}
+.item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px}
 .item+.item{border-top:1px solid var(--line)}
 .item .name{min-width:0;display:grid;gap:4px}
 .item .name b{font-size:16px;line-height:22px;font-weight:700;word-break:keep-all;overflow-wrap:anywhere}
 .qty{font-size:13px;line-height:18px;font-weight:600;color:var(--mist)}
 .qty .num{font-size:16px;font-weight:900;color:var(--lavender);margin:0 1px}
-.price{flex:none;display:flex;align-items:baseline;gap:2px}
-.price .num{font-size:26px;font-weight:900}
+.side{flex:none;display:grid;justify-items:end;gap:8px}
+.price{display:flex;align-items:baseline;gap:2px}
+.price .num{font-size:24px;font-weight:900}
 .price small{font-size:14px;font-weight:600;color:var(--mist)}
+.buy{appearance:none;border:0;cursor:pointer;height:36px;padding:0 14px;border-radius:4px;background:var(--violet);color:var(--white);font-size:14px;font-weight:700;line-height:1}
+.buy:active{background:var(--violet-pressed);transform:scale(.98)}
 .item.sold{opacity:.45}
 .item.sold .price .num{text-decoration:line-through;text-decoration-thickness:2px}
 .badge-sold{display:inline-block;justify-self:start;font-size:12px;line-height:16px;font-weight:700;color:var(--ink);background:var(--mist);padding:2px 7px;border-radius:2px}
 
-.empty{padding:32px 16px;text-align:center;display:grid;gap:12px;justify-items:center;color:var(--mist)}
-.clear{appearance:none;cursor:pointer;height:44px;padding:0 18px;border-radius:4px;border:1px solid var(--tick);background:transparent;color:var(--foam);font:inherit;font-size:14px;font-weight:700}
+.state{padding:32px 16px;text-align:center;display:grid;gap:12px;justify-items:center;color:var(--mist)}
+.btn{appearance:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:4px;font-weight:700;line-height:1;transition:transform .12s var(--ease)}
+.btn:active{transform:scale(.98)}
+.btn-primary{width:100%;height:52px;border:0;background:var(--violet);color:var(--white);font-size:16px}
+.btn-primary:active{background:var(--violet-pressed)}
+.btn-primary:disabled{opacity:.6;cursor:progress}
+.btn-sec{height:44px;padding:0 18px;border:1px solid var(--tick);background:transparent;color:var(--foam);font-size:14px}
 
 .foot{padding-block:24px calc(40px + env(safe-area-inset-bottom,0px));display:grid;gap:14px}
 .note{font-size:13px;line-height:20px;color:var(--mist)}
 .foot img{width:96px;height:auto;opacity:.8}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}}
+
+/* 구매 접수 시트 */
+dialog.sheet{position:fixed;inset:auto 0 0 0;margin:0 auto;width:100%;max-width:560px;max-height:92dvh;padding:0;overflow:auto;
+  border:1px solid var(--glass-edge);border-bottom:0;border-radius:16px 16px 0 0;background:var(--carbon);color:var(--foam);overscroll-behavior:contain}
+dialog.sheet::backdrop{background:var(--scrim)}
+dialog.sheet[open]{animation:sheet-in .28s var(--ease)}
+@keyframes sheet-in{from{transform:translateY(40px);opacity:0}}
+.sheet-in{padding:8px 20px calc(24px + env(safe-area-inset-bottom,0px));display:grid;gap:18px}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px}
+.sheet-head h2{font-size:22px;line-height:30px}
+.x-btn{appearance:none;border:0;background:transparent;color:var(--mist);width:44px;height:44px;margin-right:-10px;border-radius:4px;cursor:pointer;display:grid;place-items:center}
+.pick{display:grid;gap:6px;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
+.pick .b{font-size:13px;font-weight:600;color:var(--muted)}
+.pick strong{font-size:17px;line-height:24px;font-weight:700}
+.pick .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.pick .row .num{font-size:22px;font-weight:900}
+.pick .row small{font-size:13px;font-weight:600;color:var(--mist)}
+form{display:grid;gap:16px}
+.field{display:grid;gap:8px;border:0;margin:0;padding:0;min-width:0}
+.field label,.field legend{font-size:13px;line-height:18px;font-weight:600;color:var(--foam);padding:0}
+.input{width:100%;height:48px;padding:0 14px;background:var(--field);color:var(--foam);border:1px solid var(--tick);border-radius:4px;font-size:16px}
+.input::placeholder{color:var(--muted)}
+.input[aria-invalid="true"]{border-color:var(--error)}
+.qty-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.step{display:flex;align-items:center;gap:2px}
+.step-btn{appearance:none;width:44px;height:44px;border-radius:4px;border:1px solid var(--tick);background:transparent;color:var(--foam);cursor:pointer;display:grid;place-items:center;padding:0}
+.step-btn:disabled{opacity:.35;cursor:not-allowed}
+.step-val{min-width:40px;text-align:center;font-family:var(--font-display);font-weight:900;font-size:26px;font-variant-numeric:tabular-nums}
+.total{display:flex;align-items:baseline;gap:4px;font-size:14px;font-weight:600;color:var(--mist)}
+.total .num{font-size:26px;font-weight:900;color:var(--lavender)}
+.err{display:flex;align-items:flex-start;gap:6px;font-size:13px;line-height:18px;font-weight:600;color:var(--error)}
+.err .ico{width:16px;height:16px;margin-top:1px}
+.agree{display:grid;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+.chk{display:flex;align-items:flex-start;gap:10px;min-height:44px;padding-block:10px;cursor:pointer;font-size:14px;line-height:20px}
+.chk input{appearance:none;flex:none;width:20px;height:20px;margin:0;border:1.5px solid var(--tick);border-radius:2px;background:transparent;display:grid;place-items:center;cursor:pointer}
+.chk input:checked{background:var(--violet);border-color:var(--violet)}
+.chk input:checked::after{content:"";width:10px;height:5px;border-left:2px solid var(--white);border-bottom:2px solid var(--white);transform:translateY(-1px) rotate(-45deg)}
+.req{color:var(--lavender);font-weight:700}
+details{margin:-4px 0 4px 30px;font-size:13px;line-height:19px;color:var(--mist)}
+summary{cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:32px;display:flex;align-items:center;width:max-content}
+details dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px}
+details dt{color:var(--foam);font-weight:600}
+details dd{margin:0}
+.fine{font-size:13px;line-height:19px;color:var(--mist);text-align:center}
+.done{display:grid;gap:14px;justify-items:center;text-align:center;padding-block:8px}
+.done-mark{width:56px;height:56px;border-radius:999px;background:var(--plum);color:var(--success);display:grid;place-items:center}
+.done-mark .ico{width:28px;height:28px}
+.done h2{font-size:24px;line-height:32px}
+.done p{font-size:15px;line-height:22px;color:var(--mist);text-wrap:pretty;word-break:keep-all}
+.done dl{width:100%;margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;text-align:left;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--field);font-size:14px}
+.done dt{color:var(--mist)}
+.done dd{margin:0;font-weight:700}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -116,7 +178,7 @@ p{margin:0}
 <section class="hero wrap" aria-labelledby="title">
   <p class="eyebrow"><b>낚맛</b> 창고 털이 라이브</p>
   <h1 id="title">창고 털이<span class="x">판매 목록</span></h1>
-  <p class="lead">남은 수량과 가격을 확인해 보세요.</p>
+  <p class="lead">남은 수량과 가격을 확인하고, 구매하기를 눌러 접수해 주세요. 접수하면 담당자가 연락드려요.</p>
   <div class="stats" id="stats"></div>
 </section>
 
@@ -135,134 +197,228 @@ p{margin:0}
 
 <main class="wrap">
   <div class="list" id="list" role="tabpanel" aria-live="polite"></div>
-  <div class="empty" id="empty" hidden>
+  <div class="state" id="loading"><p>판매 목록을 불러오는 중이에요…</p></div>
+  <div class="state" id="failed" hidden>
+    <p>판매 목록을 불러오지 못했어요. 인터넷 연결을 확인하고 다시 불러와 주세요.</p>
+    <button type="button" class="btn btn-sec" id="retry">다시 불러오기</button>
+  </div>
+  <div class="state" id="empty" hidden>
     <p id="emptyText"></p>
-    <button type="button" class="clear" id="clear">검색어 지우기</button>
+    <button type="button" class="btn btn-sec" id="clear">검색어 지우기</button>
   </div>
 </main>
 
 <footer class="foot wrap">
-  <p class="note">11월 1일 방송 기준이에요. 방송 중에 팔리면 수량이 바뀔 수 있어요.</p>
+  <p class="note">수량은 실시간으로 바뀌어요. 접수만으로 결제되지 않고, 담당자가 연락드릴 때 결제를 안내해요.</p>
   <img src="../assets/logo-white.webp" alt="" width="232" height="57">
 </footer>
 
+<dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
+  <div class="sheet-in">
+    <div class="sheet-head">
+      <h2 id="sheetTitle">구매 접수</h2>
+      <button type="button" class="x-btn" id="close" aria-label="닫기"><svg class="ico" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+
+    <div id="formView">
+      <form id="f" novalidate>
+        <div class="pick">
+          <span class="b" id="pBrand"></span>
+          <strong id="pName"></strong>
+          <div class="row"><span class="price"><span class="num" id="pPrice"></span><small>원</small></span><small id="pLeft"></small></div>
+        </div>
+        <fieldset class="field">
+          <legend>수량</legend>
+          <div class="qty-row">
+            <div class="step">
+              <button type="button" class="step-btn" id="dec" aria-label="1개 빼기"><svg class="ico" viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+              <output class="step-val" id="qv" aria-live="polite">1</output>
+              <button type="button" class="step-btn" id="inc" aria-label="1개 더하기"><svg class="ico" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
+            </div>
+            <span class="total">합계 <span class="num" id="tot"></span>원</span>
+          </div>
+        </fieldset>
+        <div class="field">
+          <label for="bn">이름</label>
+          <input class="input" id="bn" autocomplete="name" placeholder="홍길동" aria-describedby="bn-err">
+          <p class="err" id="bn-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+        </div>
+        <div class="field">
+          <label for="bp">휴대폰 번호</label>
+          <input class="input" id="bp" type="tel" inputmode="numeric" autocomplete="tel" placeholder="010-1234-5678" maxlength="13" aria-describedby="bp-err">
+          <p class="err" id="bp-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+        </div>
+        <div class="agree">
+          <label class="chk"><input type="checkbox" id="ag"><span><span class="req">[필수]</span> 개인정보 수집·이용 동의</span></label>
+          <details>
+            <summary>내용 보기</summary>
+            <dl>
+              <dt>항목</dt><dd>이름, 휴대폰 번호, 구매 품목·수량</dd>
+              <dt>목적</dt><dd>구매 접수 확인, 결제·배송 안내 연락</dd>
+              <dt>보유</dt><dd>판매 종료 후 파기</dd>
+            </dl>
+            <p style="margin-top:6px">동의하지 않을 수 있지만, 이 경우 구매 접수를 할 수 없어요.</p>
+          </details>
+          <p class="err" id="ag-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+        </div>
+        <button type="submit" class="btn btn-primary" id="send">구매 접수하기</button>
+        <p class="err" id="send-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
+        <p class="fine">접수만으로 결제되지 않아요. 담당자가 연락드려 결제를 안내해요.</p>
+      </form>
+    </div>
+
+    <div class="done" id="doneView" hidden>
+      <span class="done-mark"><svg class="ico" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+      <h2 id="doneTitle" tabindex="-1">구매 접수가 완료됐어요</h2>
+      <p id="doneText"></p>
+      <dl>
+        <dt>품목</dt><dd id="dName"></dd>
+        <dt>수량</dt><dd id="dQty"></dd>
+        <dt>금액</dt><dd id="dTot"></dd>
+        <dt>연락처</dt><dd id="dPhone"></dd>
+      </dl>
+      <button type="button" class="btn btn-primary" id="back">목록으로 돌아가기</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="../config.js"></script>
 <script>
 (()=>{
-  // 판매 목록: [브랜드, 품명, 수량, 가격]. 수량이 0이면 품절로 보인다
-  const DATA={
-    reel:[
-      ['시마노','트윈파워 C2000S (20)',2,400000],
-      ['시마노','반포드 C2000S (20)',3,260000],
-      ['시마노','반포드 C3000SDH (20)',2,280000],
-      ['시마노','세피아 SS C3000SDH (19)',3,240000],
-      ['시마노','세피아 SS C3000SDHHG (19)',1,240000],
-      ['시마노','세피아 XR C3000SDH (21)',3,330000],
-      ['시마노','염월 CT 150PG 우핸들 (19)',1,250000],
-      ['시마노','염월 프리미엄 150HG 우핸들 (18)',1,350000],
-      ['시마노','오시아 콘퀘스트 200HG 우핸들 (14)',1,480000],
-      ['시마노','오시아 콘퀘스트 200PG 우핸들 (15)',1,480000],
-      ['시마노','염월 100PG 우핸들 (21)',1,270000],
-      ['시마노','염월 101PG 좌핸들 (21)',1,270000],
-      ['시마노','환풍 XT 150 우핸들 (20)',1,100000],
-      ['시마노','환풍 XT 151 좌핸들 (20)',1,100000],
-      ['시마노','소아레 BB C2000SSPG (22)',1,160000],
-      ['시마노','비비엑스 HF C3000DXG (22)',2,480000],
-      ['시마노','넥서브 C2000S BOX (21)',1,50000],
-      ['시마노','스텔라 C3000SDHHG (22)',1,780000],
-      ['다이와','20 루비아스 LT 3000C',1,360000],
-      ['다이와','20 루비아스 FC LT 2500S',1,350000],
-    ],
-    rod:[
-      ['시마노','세피아 BB S86M-S (22)',2,160000],
-      ['시마노','세피아 BB S86M (22)',1,150000],
-      ['시마노','세피아 BB 팁 에깅 S66ML-S (18)',1,140000],
-      ['시마노','세피아 BB 팁 에깅 S66M-S (18)',1,150000],
-      ['시마노','세피아 SS 메탈 슷테 B66M-S (19)',1,250000],
-      ['시마노','세피아 SS 팁 에깅 S66ML-S (19)',1,240000],
-      ['시마노','세피아 SS 팁 에깅 S66M-S (19)',1,250000],
-      ['시마노','세피아 엑스튠 S82ML (20)',1,460000],
-      ['시마노','세피아 엑스튠 S86ML (20)',1,460000],
-      ['시마노','세피아 엑스튠 S86M (20)',1,470000],
-      ['시마노','세피아 XR 팁 에깅 S68ML-S/R (22)',1,340000],
-      ['시마노','세피아 BB 팁 에깅 S70M-S (18)',1,150000],
-      ['시마노','세피아 XR 메탈 슷테 S70MH-S/R (22)',1,350000],
-      ['시마노','세피아 XR 메탈 슷테 B66M-S/F (22)',1,340000],
-      ['시마노','세피아 SS 메탈 슷테 S70MH-S/R (22)',1,260000],
-      ['시마노','세피아 엑스튠 메탈 슷테 B66ML-S/F (21)',1,470000],
-      ['시마노','세피아 BB 메탈 슷테 S66ML-S (18)',1,140000],
-      ['시마노','염월 XR FS-B55ML RIGHT (21)',1,350000],
-      ['시마노','염월 XR FS-B55ML LEFT (21)',1,350000],
-      ['시마노','염월 XR FS-B66ML LEFT (21)',1,350000],
-      ['시마노','염월 XR FS-B66ML RIGHT (21)',1,350000],
-      ['시마노','염월 XR FS-B66M RIGHT (21)',1,360000],
-      ['시마노','염월 XR N-B610ML-S RIGHT (21)',1,330000],
-      ['기간이즘','3GO-B C682M',1,120000],
-      ['기간이즘','3GO-B C672MH',1,120000],
-      ['기간이즘','3GO-B C692H',1,120000],
-      ['기간이즘','THC-B S682L',1,210000],
-      ['기간이즘','THC-B C682MH',1,210000],
-      ['기간이즘','3GO-SR S602UL',1,120000],
-      ['기간이즘','3GO-SR S632L',1,120000],
-      ['기간이즘','3GO-SR S662L',1,120000],
-      ['기간이즘','TH-B C682M',1,190000],
-      ['JSCOMPANY','NIXX POP 2 S662ML',1,80000],
-      ['JSCOMPANY','NIXX POP 2 BC652MR',1,80000],
-      ['JSCOMPANY','BIXOD B1 2021 BC692MH',2,140000],
-      ['JSCOMPANY','BIXOD B1 2021 BC712H',1,150000],
-      ['블랙홀','다크호스2 배스 S-692M',1,90000],
-      ['블랙홀','다크호스2 배스 C-652ML',1,90000],
-      ['블랙홀','다크호스2 배스 C-682MH',2,90000],
-      ['블랙홀','다크호스2 배스 C-712MH',2,90000],
-      ['블랙홀','다크호스2 배스 C-752XH',1,100000],
-      ['블랙홀','실크로드2 에디션 S-682ML',1,150000],
-      ['블랙홀','실크로드2 에디션 C-702ML',1,150000],
-      ['블랙홀','실크로드2 에디션 C-702M',1,160000],
-      ['블랙홀','실크로드2 에디션 C-752MH',2,160000],
-      ['블랙홀','실크로드2 에디션 C-7112H',1,160000],
-      ['블랙홀','실크로드2 에디션 C-722M (ONE & HALF)',1,160000],
-      ['블랙홀','실크로드2 에디션 C-732XH (ONE & HALF)',1,170000],
-      ['블랙홀','실크로드2 에디션 C-762XXH (ONE & HALF)',1,170000],
-      ['블랙홀','실크로드2 에디션 C-762MH (ONE & HALF)',3,160000],
-    ]
-  };
   const $=s=>document.querySelector(s);
+  const CFG=window.LUDIC_CONFIG||{};
+  const BASE=(CFG.supabaseUrl||'').replace(/\/$/,''), KEY=CFG.supabaseAnonKey||'';
+  async function rpc(fn,body){
+    const r=await fetch(BASE+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+    if(!r.ok) throw new Error('http_'+r.status);
+    return r.json();
+  }
   const won=n=>n.toLocaleString('ko-KR');
-  const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const left=k=>DATA[k].reduce((a,r)=>a+r[2],0);
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const kinds=[['reel','릴'],['rod','로드']];
 
-  kinds.forEach(([k])=>{ $('#n-'+k).textContent=DATA[k].length+'종'; });
-  $('#stats').innerHTML=kinds.map(([k,label])=>'<span class="stat">'+label+' <span class="num">'+left(k)+'</span>개 남음</span>').join('');
-
-  let kind=location.hash==='#rod'?'rod':'reel';
-  const q=$('#q'), list=$('#list'), empty=$('#empty');
+  let items=[], kind=location.hash==='#rod'?'rod':'reel';
+  const q=$('#q'), list=$('#list');
   // 띄어쓰기·대소문자·하이픈을 무시하고 찾는다(예: "c3000" → C3000SDH)
   const norm=s=>s.toLowerCase().replace(/[\s\-()]/g,'');
 
   function render(){
     document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.kind===kind)));
     list.setAttribute('aria-labelledby','tab-'+kind);
+    if(!items.length) return;
+    kinds.forEach(([k])=>{ $('#n-'+k).textContent=items.filter(i=>i.kind===k).length+'종'; });
+    $('#stats').innerHTML=kinds.map(([k,label])=>'<span class="stat">'+label+' <span class="num">'+items.filter(i=>i.kind===k).reduce((a,i)=>a+i.left,0)+'</span>개 남음</span>').join('');
     const term=norm(q.value);
-    const rows=DATA[kind].filter(r=>!term||norm(r[0]+r[1]).includes(term));
-    const brands=[...new Set(rows.map(r=>r[0]))];
+    const rows=items.filter(i=>i.kind===kind&&(!term||norm(i.brand+i.name).includes(term)));
+    const brands=[...new Set(rows.map(r=>r.brand))];
     list.innerHTML=brands.map(b=>{
-      const items=rows.filter(r=>r[0]===b);
-      return '<section class="brand"><h2>'+esc(b)+' <small>'+items.length+'종</small></h2><ul class="items">'+
-        items.map(([,name,n,price])=>
-          '<li class="item'+(n?'':' sold')+'"><div class="name"><b>'+esc(name)+'</b>'+
-          (n?'<span class="qty">남은 수량 <span class="num">'+n+'</span>개</span>':'<span class="badge-sold">품절</span>')+
-          '</div><div class="price"><span class="num">'+won(price)+'</span><small>원</small></div></li>').join('')+
+      const its=rows.filter(r=>r.brand===b);
+      return '<section class="brand"><h2>'+esc(b)+' <small>'+its.length+'종</small></h2><ul class="items">'+
+        its.map(i=>'<li class="item'+(i.left?'':' sold')+'"><div class="name"><b>'+esc(i.name)+'</b>'+
+          (i.left?'<span class="qty">남은 수량 <span class="num">'+i.left+'</span>개</span>':'<span class="badge-sold">품절</span>')+
+          '</div><div class="side"><div class="price"><span class="num">'+won(i.price)+'</span><small>원</small></div>'+
+          (i.left?'<button type="button" class="buy" data-id="'+i.id+'">구매하기</button>':'')+'</div></li>').join('')+
         '</ul></section>';
     }).join('');
-    empty.hidden=rows.length>0;
+    $('#empty').hidden=rows.length>0;
     if(!rows.length) $('#emptyText').textContent='‘'+q.value.trim()+'’에 맞는 '+(kind==='reel'?'릴이':'로드가')+' 없어요. 다른 탭도 확인해 보세요.';
+  }
+  async function load(){
+    try{
+      items=await rpc('stock_list');
+      $('#loading').hidden=true; $('#failed').hidden=true; render();
+      if(current) syncPick();
+    }catch(e){
+      if(!items.length){ $('#loading').hidden=true; $('#failed').hidden=false; }
+    }
   }
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
     kind=t.dataset.kind; history.replaceState(null,'','#'+kind); render();
   }));
   q.addEventListener('input',render);
   $('#clear').addEventListener('click',()=>{ q.value=''; render(); q.focus(); });
-  render();
+  $('#retry').addEventListener('click',()=>{ $('#failed').hidden=true; $('#loading').hidden=false; load(); });
+  // 방송 중에 다른 사람이 접수하면 수량이 바뀌니, 화면을 보고 있을 때 20초마다 새로 불러온다
+  setInterval(()=>{ if(!document.hidden) load(); },20000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) load(); });
+
+  // ---- 구매 접수 시트 ----
+  const sheet=$('#sheet'), bn=$('#bn'), bp=$('#bp'), ag=$('#ag'), send=$('#send');
+  const LKEY='nakmat-buyer';   // 이 기기에만 저장: 다음 접수 때 이름·번호를 다시 쓰지 않도록
+  let current=null, qty=1, busy=false;
+  function setErr(key,msg){
+    const el=$('#'+key+'-err'); el.hidden=!msg; el.querySelector('span').textContent=msg||'';
+    const t={bn,bp}[key]; if(t) t.setAttribute('aria-invalid',msg?'true':'false');
+  }
+  function maxQty(){ return Math.min(current?current.left:0,10); }
+  function paintQty(){
+    const m=maxQty(); qty=Math.max(1,Math.min(qty,m||1));
+    $('#qv').textContent=qty; $('#dec').disabled=qty<=1; $('#inc').disabled=qty>=m;
+    $('#tot').textContent=won(current.price*qty);
+  }
+  function syncPick(){
+    const fresh=items.find(i=>i.id===current.id); if(fresh) current=fresh;
+    $('#pLeft').textContent=current.left?'남은 수량 '+current.left+'개':'품절';
+    send.disabled=busy||!current.left; paintQty();
+  }
+  function open(id){
+    current=items.find(i=>i.id===id); if(!current) return;
+    qty=1; ['bn','bp','ag','send'].forEach(k=>setErr(k,''));
+    $('#pBrand').textContent=current.brand+' · '+(current.kind==='reel'?'릴':'로드');
+    $('#pName').textContent=current.name; $('#pPrice').textContent=won(current.price);
+    try{ const s=JSON.parse(localStorage.getItem(LKEY)||'null'); if(s){ if(!bn.value) bn.value=s.name||''; if(!bp.value) bp.value=s.phone||''; } }catch(e){}
+    $('#formView').hidden=false; $('#doneView').hidden=true; syncPick();
+    sheet.showModal();
+  }
+  list.addEventListener('click',e=>{ const b=e.target.closest('.buy'); if(b) open(Number(b.dataset.id)); });
+  $('#close').addEventListener('click',()=>sheet.close());
+  $('#back').addEventListener('click',()=>sheet.close());
+  sheet.addEventListener('click',e=>{ if(e.target===sheet) sheet.close(); });   // 바깥 어두운 곳을 누르면 닫힘
+  sheet.addEventListener('close',()=>{ current=null; });
+  $('#dec').addEventListener('click',()=>{ qty--; paintQty(); });
+  $('#inc').addEventListener('click',()=>{ qty++; paintQty(); });
+  bp.addEventListener('input',()=>{
+    const d=bp.value.replace(/\D/g,'').slice(0,11);
+    bp.value=d.length<4?d:d.length<8?d.slice(0,3)+'-'+d.slice(3):d.length<11?d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6):d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+    setErr('bp','');
+  });
+  bn.addEventListener('input',()=>setErr('bn',''));
+  ag.addEventListener('change',()=>{ if(ag.checked) setErr('ag',''); });
+
+  $('#f').addEventListener('submit',async e=>{
+    e.preventDefault(); if(busy||!current) return;
+    let first=null;
+    const n=bn.value.trim(), d=bp.value.replace(/\D/g,'');
+    if(!n){ setErr('bn','이름을 입력해 주세요'); first=first||bn; } else setErr('bn','');
+    if(!/^01[016789]\d{7,8}$/.test(d)){ setErr('bp',d?'휴대폰 번호를 010-1234-5678 형식으로 입력해 주세요':'연락받을 휴대폰 번호를 입력해 주세요'); first=first||bp; } else setErr('bp','');
+    if(!ag.checked){ setErr('ag','개인정보 수집·이용에 동의해 주세요'); first=first||ag; } else setErr('ag','');
+    if(first){ first.focus(); return; }
+    setErr('send','');
+    busy=true; send.disabled=true; send.textContent='접수하는 중…';
+    let res=null;
+    try{ res=await rpc('place_order',{p_item:current.id,p_qty:qty,p_name:n,p_phone:d,p_agree:true}); }catch(err){ res=null; }
+    busy=false; send.textContent='구매 접수하기'; send.disabled=false;
+    if(!res){ setErr('send','접수하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.'); send.focus(); return; }
+    if(!res.ok){
+      if(res.code==='soldout'){
+        current.left=res.left||0;
+        setErr('send',current.left?'방금 다른 분이 먼저 접수해서 남은 수량이 '+current.left+'개예요. 수량을 줄여서 다시 접수해 주세요.':'방금 다른 분이 먼저 접수해서 품절됐어요.');
+        load(); syncPick(); return;
+      }
+      const map={name:['bn','이름을 40자 이내로 입력해 주세요'],phone:['bp','휴대폰 번호를 010-1234-5678 형식으로 입력해 주세요'],
+        agree:['ag','개인정보 수집·이용에 동의해 주세요'],limit:['send','이 번호로 접수 대기 중인 주문이 5건이에요. 담당자 연락을 받은 뒤 다시 접수해 주세요.']};
+      const [k,msg]=map[res.code]||['send','접수하지 못했어요. 목록을 새로 불러온 뒤 다시 시도해 주세요.'];
+      setErr(k,msg); return;
+    }
+    try{ localStorage.setItem(LKEY,JSON.stringify({name:n,phone:bp.value})); }catch(e){}
+    $('#dName').textContent=current.name; $('#dQty').textContent=qty+'개';
+    $('#dTot').textContent=won(current.price*qty)+'원'; $('#dPhone').textContent=d.slice(0,3)+'-****-'+d.slice(-4);
+    $('#doneText').textContent='담당자가 '+d.slice(0,3)+'-****-'+d.slice(-4)+' 번호로 연락드려 결제를 안내해요.';
+    $('#formView').hidden=true; $('#doneView').hidden=false; $('#doneTitle').focus();
+    ag.checked=false; load();
+  });
+
+  render(); load();
 })();
 </script>
 </body>

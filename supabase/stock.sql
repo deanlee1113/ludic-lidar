@@ -20,6 +20,10 @@ alter table public.stock_items add column if not exists fishing text;
 -- 추천 품목(루딕 라이다): 배지 문구, 줄 그어 보여 줄 기존 판매가, 한 번에 접수할 수 있는 최대 수량(없으면 10)
 alter table public.stock_items add column if not exists badge text;
 alter table public.stock_items add column if not exists was_price int check (was_price is null or was_price >= 0);
+-- 인터넷 최저가(한국 정품 새 제품)와 그 판매처 링크. 판매 목록에는 우리 가격보다 높을 때만 보여 준다(값은 stock_net.sql)
+alter table public.stock_items add column if not exists net_price int check (net_price is null or net_price >= 0);
+alter table public.stock_items add column if not exists net_url text check (net_url is null or net_url ~ '^https://');
+alter table public.stock_items add column if not exists net_label text check (net_label is null or char_length(net_label) <= 30);
 alter table public.stock_items add column if not exists max_qty int check (max_qty is null or max_qty between 1 and 10);
 
 -- 2) 구매 접수
@@ -82,6 +86,7 @@ as $$
            'id', i.id, 'kind', i.kind, 'brand', i.brand, 'name', i.name,
            'model_year', i.model_year, 'fishing', i.fishing,
            'badge', i.badge, 'was_price', i.was_price, 'max_qty', i.max_qty,
+           'net_price', i.net_price, 'net_url', i.net_url, 'net_label', i.net_label,
            'price', i.price, 'left', greatest(public.stock_left(i.id), 0))
          order by i.kind desc, i.sort), '[]'::json)
   from stock_items i

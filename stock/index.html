@@ -88,6 +88,10 @@ button,input{font:inherit}
 .brand.featured .items{border:2px solid var(--violet);box-shadow:0 0 0 4px var(--glow-violet-soft)}
 .brand .lead-note{font-size:13px;line-height:20px;color:var(--mist)}
 .was{font-size:13px;line-height:16px;font-weight:600;color:var(--muted);text-decoration:line-through}
+/* 인터넷 최저가(한국 정품 새 제품): 우리 가격보다 높을 때만, 누르면 그 판매처로 */
+.net{justify-self:start;font-size:13px;line-height:18px;font-weight:600;color:var(--mist);word-break:keep-all}
+.net a{color:var(--lavender);text-decoration:underline;text-underline-offset:2px}
+.net .save{color:var(--flare);font-weight:700;margin-left:6px;white-space:nowrap}
 .items{list-style:none;margin:0;padding:0;border:1px solid var(--glass-edge);border-radius:10px;background:var(--glass);overflow:hidden;
   -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%)}
 .item{padding:14px 16px}
@@ -409,6 +413,13 @@ details dd{margin:0}
     if(!i.model_year&&!i.fishing) return '';
     return '<span class="spec">'+(i.model_year?'<span class="yr">'+esc(i.model_year)+'</span>':'')+(i.fishing?'<span>'+esc(i.fishing)+'</span>':'')+'</span>';
   }
+  // 인터넷 최저가: 판매처 페이지에서 확인한 한국 정품 가격(DB net_*). 우리 가격보다 쌀 때는 보여 주지 않는다
+  function net(i){
+    if(!i.net_price || i.net_price<=i.price) return '';
+    const t=esc(i.net_label||'인터넷 최저가')+' '+won(i.net_price)+'원';
+    return '<span class="net">'+(/^https:\/\//.test(i.net_url||'')?'<a href="'+esc(i.net_url)+'" target="_blank" rel="noopener">'+t+' ↗</a>':t)+
+      '<span class="save">'+won(i.net_price-i.price)+'원 저렴</span></span>';
+  }
   function render(){
     document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.kind===kind)));
     list.setAttribute('aria-labelledby','tab-'+kind);
@@ -422,7 +433,7 @@ details dd{margin:0}
       const its=rows.filter(r=>r.brand===b), badge=(its.find(r=>r.badge)||{}).badge, lim=(its.find(r=>r.max_qty)||{}).max_qty;
       return '<section class="brand'+(badge?' featured':'')+'"><h2>'+(badge?'<span class="feat">'+esc(badge)+'</span>':'')+esc(b)+' <small>'+its.length+'종</small></h2>'+
         (badge&&lim?'<p class="lead-note">라이브 특가예요. 한 번에 '+lim+'개까지 접수할 수 있어요.</p>':'')+'<ul class="items">'+
-        its.map(i=>'<li class="item'+(i.left?'':' sold')+'"><div class="item-row"><div class="name"><b>'+esc(i.name)+'</b>'+spec(i)+
+        its.map(i=>'<li class="item'+(i.left?'':' sold')+'"><div class="item-row"><div class="name"><b>'+esc(i.name)+'</b>'+spec(i)+net(i)+
           (i.left?'<span class="qty">남은 수량 <span class="num">'+i.left+'</span>개</span>':'<span class="badge-sold">품절</span>')+moreBtn(i)+
           '</div><div class="side">'+(i.was_price>i.price?'<s class="was">'+won(i.was_price)+'원</s>':'')+'<div class="price"><span class="num">'+won(i.price)+'</span><small>원</small></div>'+
           (i.left?'<button type="button" class="buy" data-id="'+i.id+'">구매하기</button>':'')+'</div></div>'+detail(i)+'</li>').join('')+

@@ -417,7 +417,7 @@ details dd{margin:0}
   function net(i){
     if(!i.net_price || i.net_price<=i.price) return '';
     const t=esc(i.net_label||'인터넷 최저가')+' '+won(i.net_price)+'원';
-    return '<span class="net">'+(/^https:\/\//.test(i.net_url||'')?'<a href="'+esc(i.net_url)+'" target="_blank" rel="noopener">'+t+' ↗</a>':t)+
+    return '<span class="net">'+(/^https:\/\//.test(i.net_url||'')?'<a href="'+esc(i.net_url)+'" target="_blank" rel="noopener">'+t+'&nbsp;↗</a>':t)+
       '<span class="save">'+won(i.net_price-i.price)+'원 저렴</span></span>';
   }
   function render(){

@@ -62,3 +62,30 @@ update stock_items set model_year='2023년', fishing='배스 · 커버·알라�
 update stock_items set model_year='2023년', fishing='배스 · 루어 1/4~1oz' where id=247;
 update stock_items set model_year='2023년', fishing='배스 · 루어 3/8~4oz · PE 2~5호' where id=248;
 update stock_items set model_year='2023년', fishing='배스 · 루어 3/8~5oz · PE 3~6호' where id=249;
+
+-- ===== 릴 =====
+-- 시마노 베이트 릴 (fishing.shimano.co.jp/product/reel/5568·5234·3699·6274·5916 웨이백 아카이브)
+update stock_items set model_year='2019년', fishing='참돔 타이라바 · 카운터·폴레버' where id=107;
+update stock_items set model_year='2018년', fishing='참돔 타이라바 · 이카메탈' where id=108;
+-- 109·110: 200HG 2014년 9월, 200PG 2015년(공식 "2015年…"PG"登場"). HG 용도는 공식 영상 제목(マダイ・ワラサ・カンパチ編)
+update stock_items set model_year='2014년', fishing='참돔 타이라바 · 방어·잿방어' where id=109;
+update stock_items set model_year='2015년', fishing='참돔 타이라바 · 파워기어 등속 감기' where id=110;
+update stock_items set model_year='2021년', fishing='참돔 타이라바' where id in (111,112);
+-- 113·114 환풍 XT(ゲンプウXT): 「カワハギ、マルイカ、カレイなどに適した150/151」
+update stock_items set model_year='2020년', fishing='선상 쥐치·한치·가자미' where id in (113,114);
+
+-- 소아레 BB·BB-X 하이퍼포스(fish.shimano.com 아카이브), 다이와 20 루비아스(daiwa.com 아카이브, Release 2020年02月)
+update stock_items set model_year='2022년', fishing='아징(전갱이) · 라이트게임' where id=115;
+update stock_items set model_year='2022년', fishing='갯바위 낚시 · 레버브레이크' where id=116;
+update stock_items set model_year='2020년', fishing='에깅·농어·배스·송어·텐야 참돔' where id=119;
+update stock_items set model_year='2020년', fishing='배스 라이트리그 · 라이트 솔트' where id=120;
+-- 시마노 스피닝 릴 (fishing.shimano.co.jp/product/reel/5913·6165·5833, fish.shimano.com 세피아XR·넥서브·스텔라 아카이브)
+-- 101·102 C2000S: 「［参考対象魚・釣種］ライトソルト全般、エリアトラウト」 / 103: 「エギングスタンダードモデル」
+update stock_items set model_year='2020년', fishing='라이트 솔트 · 에어리어 송어' where id in (101,102);
+update stock_items set model_year='2020년', fishing='에깅 · 더블핸들' where id=103;
+update stock_items set model_year='2019년', fishing='에깅 · 더블핸들' where id=104;
+update stock_items set model_year='2019년', fishing='에깅 · 더블핸들 · 하이기어' where id=105;
+update stock_items set model_year='2021년', fishing='에깅 전용' where id=106;
+-- 117 넥서브 C2000S BOX: "_box" 품번은 18년형 스펙표에만 있고 21년형에는 없어 연식을 비워 둔다(박스 JAN으로 확인 필요)
+update stock_items set model_year=null, fishing='범용 스피닝' where id=117;
+update stock_items set model_year='2022년', fishing='범용 스피닝' where id=118;

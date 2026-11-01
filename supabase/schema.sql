@@ -74,6 +74,8 @@ declare
   n text := btrim(coalesce(p_name, ''));
   s int := coalesce(p_s65l, 0); c int := coalesce(p_c67m, 0); h int := coalesce(p_c68mh, 0);
 begin
+  -- 2026-11-01 사전예약 마감: 새 신청은 받지 않는다. 다시 열 때는 이 줄과 index.html의 CLOSED를 함께 고친다
+  return json_build_object('ok', false, 'code', 'closed');
   if not (coalesce(p_agree_privacy, false) and coalesce(p_agree_notify, false)) then
     return json_build_object('ok', false, 'code', 'agree');
   end if;

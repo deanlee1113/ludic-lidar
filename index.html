@@ -363,7 +363,7 @@ details dd{margin:0}
   <section class="sec wrap" aria-labelledby="model-title">
     <div class="sec-head">
       <h2 id="model-title">모델 라인업</h2>
-      <p>3종 · 모델 상관없이 1인당 3개까지 담을 수 있어요</p>
+      <p id="model-sub">3종 · 모델 상관없이 1인당 3개까지 담을 수 있어요</p>
     </div>
     <div class="models">
       <article class="model glass" data-model="S-65L">
@@ -459,6 +459,12 @@ details dd{margin:0}
         </form>
       </div>
 
+      <div id="closedView" class="done" hidden>
+        <span class="done-mark"><svg class="ico" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>
+        <h2 id="closedTitle">사전예약이 마감됐어요</h2>
+        <p class="sub" style="color:var(--mist);font-size:15px;line-height:22px">신청해 주셔서 감사해요. 사전예약하신 분께는 라이브가 시작되면 가입한 번호로 알려드릴게요.</p>
+      </div>
+
       <div id="doneView" class="done" hidden>
         <span class="done-mark"><svg class="ico" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
         <h2 id="doneTitle" tabindex="-1">사전예약이 접수됐어요</h2>
@@ -475,7 +481,7 @@ details dd{margin:0}
     </div>
   </section>
 
-  <section class="sec wrap" aria-labelledby="member-title">
+  <section class="sec wrap" id="memberSec" aria-labelledby="member-title">
     <div class="member glass">
       <span class="badge">낚맛 회원 전용</span>
       <h3 id="member-title">아직 낚맛 회원이 아니라면</h3>
@@ -487,10 +493,11 @@ details dd{margin:0}
   <section class="wrap notes" aria-labelledby="notes-title">
     <h3 id="notes-title">유의사항</h3>
     <ul>
+      <li id="closedNote" hidden>사전예약은 마감됐어요. 새로 신청할 수 없어요.</li>
       <li>사전예약 단계에서는 결제가 진행되지 않아요.</li>
       <li>라이브 특가 금액은 방송 중에 공개돼요.</li>
       <li>라이브 특가 구매는 모델 상관없이 1인당 총 3개로 제한돼요.</li>
-      <li>낚맛 앱 회원 전용 프로모션이에요. 낚맛에 가입한 번호로 신청해 주세요.</li>
+      <li id="memberNote">낚맛 앱 회원 전용 프로모션이에요. 낚맛에 가입한 번호로 신청해 주세요.</li>
     </ul>
     <div class="foot">
       <img src="assets/logo-white.webp" alt="" width="232" height="57">
@@ -602,6 +609,16 @@ details dd{margin:0}
   });
   const agAll=$('#ag-all'), agP=$('#ag-privacy'), agN=$('#ag-notify');
   const dock=$('#dock'); let submitted=false;
+  // 사전예약 마감: 신청 폼과 하단 버튼을 내리고 마감 안내만 보여 준다. 다시 열 때는 supabase/schema.sql의 submit_reservation도 함께 고친다
+  const CLOSED=true;
+  if(CLOSED){
+    $('#hero-title .x').textContent='사전예약 마감';
+    $('#model-sub').textContent='3종 · 사전예약이 마감됐어요';
+    $('#formView').hidden=true; $('#closedView').hidden=false; $('#closedNote').hidden=false;
+    $('#memberSec').hidden=true; $('#memberNote').hidden=true;   // '가입한 번호로 사전예약해 주세요' 안내는 마감 뒤에 맞지 않음
+    dock.hidden=true;
+    $$('[data-pick]').forEach(b=>{ b.disabled=true; });
+  }
 
   function setErr(key,msg){
     const el=$('#'+key+'-err'); el.hidden=!msg; el.querySelector('span').textContent=msg||'';
@@ -623,7 +640,7 @@ details dd{margin:0}
     $('#cart-rule').textContent=t>=MAX?'3개를 모두 담았어요.'+(open.length>1?' 다른 모델을 담으려면 하나를 빼 주세요.':''):'모델 상관없이 1인당 3개까지';
     cards.forEach(c=>{
       const q=qty[c.dataset.model], b=c.querySelector('[data-pick]');
-      if(b.disabled){ b.textContent='품절'; return; }
+      if(b.disabled){ b.textContent=SOLD_OUT.includes(c.dataset.model)?'품절':'마감'; return; }
       c.classList.toggle('is-picked',q>0);
       b.setAttribute('aria-pressed',q>0?'true':'false');
       b.textContent=q>0?q+'개 담았어요':'이 모델 담기';
@@ -692,6 +709,7 @@ details dd{margin:0}
           name:['name','성함을 40자 이내로 입력해 주세요'],
           qty:['cart','모델 상관없이 1인당 3개까지 담을 수 있어요'],
           soldout:['cart','품절된 모델이 담겨 있어요. 페이지를 새로고침하고 다시 담아 주세요.'],
+          closed:['submit','사전예약이 마감됐어요. 새로 신청할 수 없어요.'],
           agree:['agree','필수 동의 항목 2개에 모두 체크해 주세요']};
         const [k,msg]=map[res.code]||['submit','신청을 저장하지 못했어요. 입력 내용을 확인하고 다시 시도해 주세요.'];
         setErr(k,msg); ({name:name,phone:phone}[k]||submitBtn).focus(); return;

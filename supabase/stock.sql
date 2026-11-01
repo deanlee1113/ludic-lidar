@@ -43,6 +43,12 @@ create policy "admins read stock_items" on public.stock_items for select to auth
 drop policy if exists "admins read stock_orders" on public.stock_orders;
 create policy "admins read stock_orders" on public.stock_orders for select to authenticated using (public.is_admin());
 
+-- 2-1) 입금 계좌: 공개 저장소·페이지 소스에 남기지 않고, 접수에 성공한 사람에게만 place_order 응답으로 돌려준다.
+--      값(account_bank / account_number / account_holder)은 SQL로 직접 넣는다. 이 파일에는 적지 않는다.
+create table if not exists public.stock_settings (key text primary key, value text not null);
+alter table public.stock_settings enable row level security;
+revoke all on public.stock_settings from anon, authenticated;
+
 -- 3) 남은 수량
 create or replace function public.stock_left(p_item int)
 returns int
@@ -95,7 +101,8 @@ begin
   left_now := public.stock_left(p_item);
   if left_now < q then return json_build_object('ok', false, 'code', 'soldout', 'left', greatest(left_now, 0)); end if;
   insert into stock_orders (item_id, qty, name, phone, agree_privacy) values (p_item, q, n, d, true) returning id into oid;
-  return json_build_object('ok', true, 'order', oid, 'left', left_now - q);
+  return json_build_object('ok', true, 'order', oid, 'left', left_now - q,
+    'account', (select json_object_agg(replace(key, 'account_', ''), value) from stock_settings where key like 'account_%'));
 end $$;
 
 -- 6) 관리자: 접수 상태 바꾸기

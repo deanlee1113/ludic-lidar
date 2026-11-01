@@ -191,6 +191,21 @@ details dd{margin:0}
 .done dl{width:100%;margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;text-align:left;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--field);font-size:14px}
 .done dt{color:var(--mist)}
 .done dd{margin:0;font-weight:700}
+/* 접수 직전 번호 확인 */
+.confirm{display:grid;gap:12px;padding:16px;border:2px solid var(--lavender);border-radius:10px;background:var(--field);text-align:center}
+.confirm p{font-size:15px;line-height:22px;color:var(--mist)}
+.confirm .cnum{font-family:var(--font-display);font-size:38px;font-weight:900;line-height:1.1;letter-spacing:.02em;color:var(--foam);font-variant-numeric:tabular-nums}
+.confirm .two{display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
+.confirm .two .btn{height:52px;font-size:15px}
+/* 입금 계좌 */
+.acct{width:100%;display:grid;gap:6px;padding:16px;border:2px solid var(--violet);border-radius:10px;background:var(--field);text-align:left}
+.acct .k{font-size:13px;font-weight:600;color:var(--mist)}
+.acct .bank{font-size:15px;font-weight:700}
+.acct .no{font-family:var(--font-display);font-size:30px;font-weight:900;line-height:1.1;letter-spacing:.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.acct .holder{font-size:14px;color:var(--mist)}
+.acct .amt{font-size:14px;line-height:21px;color:var(--mist);word-break:keep-all}
+.acct .amt b{color:var(--foam);white-space:nowrap}
+.acct .btn-sec{justify-self:start;margin-top:4px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -212,7 +227,7 @@ details dd{margin:0}
     <ol>
       <li><span><b>구매하기</b>를 누르고 이름과 휴대폰 번호를 남겨 주세요</span></li>
       <li><span>담당자가 <b>접수를 확인하고 연락</b>드려요</span></li>
-      <li><span>안내받은 <b>계좌로 입금</b>해 주세요</span></li>
+      <li><span>접수 완료 화면에 나온 <b>계좌로 입금</b>해 주세요</span></li>
       <li><span><b>오후 3시 전에 입금</b>하면 당일 발송해요</span></li>
     </ol>
   </div>
@@ -303,11 +318,19 @@ details dd{margin:0}
           <h3>접수하면 이렇게 진행돼요</h3>
           <ol>
             <li><span>담당자가 <b>접수를 확인하고 연락</b>드려요</span></li>
-            <li><span>안내받은 <b>계좌로 입금</b>해 주세요</span></li>
+            <li><span>접수 완료 화면에 나온 <b>계좌로 입금</b>해 주세요</span></li>
             <li><span><b>오후 3시 전에 입금</b>하면 당일 발송해요</span></li>
           </ol>
         </div>
         <button type="submit" class="btn btn-primary" id="send">구매 접수하기</button>
+        <div class="confirm" id="confirmBox" hidden>
+          <p>이 번호로 연락드려요. 번호가 맞나요?</p>
+          <strong class="cnum" id="cNum"></strong>
+          <div class="two">
+            <button type="button" class="btn btn-sec" id="cEdit">번호 고치기</button>
+            <button type="button" class="btn btn-primary" id="cOk">맞아요, 접수하기</button>
+          </div>
+        </div>
         <p class="err" id="send-err" hidden><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span></p>
       </form>
     </div>
@@ -316,6 +339,14 @@ details dd{margin:0}
       <span class="done-mark"><svg class="ico" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
       <h2 id="doneTitle" tabindex="-1">구매 접수가 완료됐어요</h2>
       <p id="doneText"></p>
+      <div class="acct" id="acct" hidden>
+        <span class="k">입금 계좌</span>
+        <span class="bank" id="aBank"></span>
+        <span class="no" id="aNo"></span>
+        <span class="holder" id="aHolder"></span>
+        <span class="amt">입금할 금액 <b id="aAmt"></b> · 입금자명은 접수한 이름(<b id="aName"></b>)으로 해 주세요</span>
+        <button type="button" class="btn btn-sec" id="copyAcct">계좌번호 복사</button>
+      </div>
       <dl>
         <dt>품목</dt><dd id="dName"></dd>
         <dt>수량</dt><dd id="dQty"></dd>
@@ -326,7 +357,7 @@ details dd{margin:0}
         <h3>다음 순서</h3>
         <ol>
           <li><span>담당자가 <b>접수를 확인하고 연락</b>드려요</span></li>
-          <li><span>안내받은 <b>계좌로 입금</b>해 주세요</span></li>
+          <li><span>접수 완료 화면에 나온 <b>계좌로 입금</b>해 주세요</span></li>
           <li><span><b>오후 3시 전에 입금</b>하면 당일 발송해요</span></li>
         </ol>
       </div>
@@ -445,7 +476,7 @@ details dd{margin:0}
     $('#pName').textContent=current.name; $('#pPrice').textContent=won(current.price);
     $('#pSpec').innerHTML=spec(current);
     try{ const s=JSON.parse(localStorage.getItem(LKEY)||'null'); if(s){ if(!bn.value) bn.value=s.name||''; if(!bp.value) bp.value=s.phone||''; } }catch(e){}
-    $('#formView').hidden=false; $('#doneView').hidden=true; syncPick();
+    $('#formView').hidden=false; $('#doneView').hidden=true; closeConfirm(); syncPick();
     sheet.showModal();
   }
   list.addEventListener('click',e=>{
@@ -479,6 +510,16 @@ details dd{margin:0}
     if(!/^01[016789]\d{7,8}$/.test(d)){ setErr('bp',d?'휴대폰 번호를 010-1234-5678 형식으로 입력해 주세요':'연락받을 휴대폰 번호를 입력해 주세요'); first=first||bp; } else setErr('bp','');
     if(!ag.checked){ setErr('ag','개인정보 수집·이용에 동의해 주세요'); first=first||ag; } else setErr('ag','');
     if(first){ first.focus(); return; }
+    // 번호를 잘못 넣는 일이 많아서, 접수 직전에 번호를 크게 보여 주고 한 번 더 확인받는다
+    $('#cNum').textContent=bp.value; send.hidden=true; $('#confirmBox').hidden=false;
+    $('#confirmBox').scrollIntoView({block:'nearest'}); $('#cOk').focus();
+  });
+  function closeConfirm(){ $('#confirmBox').hidden=true; send.hidden=false; }
+  $('#cEdit').addEventListener('click',()=>{ closeConfirm(); bp.focus(); bp.select(); });
+  bp.addEventListener('input',closeConfirm);
+  $('#cOk').addEventListener('click',()=>{ closeConfirm(); placeOrder(bn.value.trim(),bp.value.replace(/\D/g,'')); });
+  async function placeOrder(n,d){
+    if(busy||!current) return;
     setErr('send','');
     busy=true; send.disabled=true; send.textContent='접수하는 중…';
     let res=null;
@@ -500,8 +541,21 @@ details dd{margin:0}
     $('#dName').textContent=current.name; $('#dQty').textContent=qty+'개';
     $('#dTot').textContent=won(current.price*qty)+'원'; $('#dPhone').textContent=d.slice(0,3)+'-****-'+d.slice(-4);
     $('#doneText').textContent='담당자가 접수를 확인하고 '+d.slice(0,3)+'-****-'+d.slice(-4)+' 번호로 연락드려요.';
+    const a=res.account||{};
+    $('#acct').hidden=!a.number;
+    if(a.number){
+      $('#aBank').textContent=a.bank||''; $('#aNo').textContent=a.number; $('#aHolder').textContent=a.holder?'예금주 '+a.holder:'';
+      $('#aAmt').textContent=won(current.price*qty)+'원'; $('#aName').textContent=n; acctNo=a.number;
+    }
     $('#formView').hidden=true; $('#doneView').hidden=false; $('#doneTitle').focus();
     ag.checked=false; load();
+  }
+  let acctNo='';
+  $('#copyAcct').addEventListener('click',async()=>{
+    const b=$('#copyAcct');
+    try{ await navigator.clipboard.writeText(acctNo); b.textContent='복사했어요'; }
+    catch(e){ b.textContent='길게 눌러 복사해 주세요'; }
+    setTimeout(()=>{ b.textContent='계좌번호 복사'; },2000);
   });
 
   render(); load();

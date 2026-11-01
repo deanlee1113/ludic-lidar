@@ -6,3 +6,5 @@ insert into stock_items (id, kind, brand, name, price, qty, sort, fishing, badge
  (302,'rod','루딕 라이다','C-67M',80000,0,-2,'배스 · 베이트 미디엄 · 웜·하드베이트 올라운드','추천',95000,3),
  (303,'rod','루딕 라이다','S-65L',80000,5,-1,'배스 · 스피닝 라이트 · 피네스·바다 라이트게임','추천',95000,3)
 on conflict (id) do nothing;
+-- 2026-11-01 사용자 요청: C-67M 판매 수량 5대로 변경
+update stock_items set qty=5 where id=302;

@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 <style>
-/* 주문 관리: 위에서 아래로 요약 숫자 → 상태 탭·검색 → 주문 카드 → 품목별 재고 (사전예약 관리자와 같은 토큰) */
+/* 주문 관리: 위에서 아래로 요약 숫자 → 상태 탭·검색 → 주문 카드 → 재고·가격 수정 (사전예약 관리자와 같은 토큰) */
 :root{
   --ink:#08070C; --carbon:#14111E; --carbon-raised:#1C1829; --plum:#2B1460; --violet:#7C3AED; --violet-pressed:#6A2BD6; --lavender:#B79CFF;
   --flare:#FC5C2F; --foam:#F5F3FA; --mist:#BDB4D8; --tick:#7D72A8; --muted:#8E85AE; --white:#FFFFFF;
@@ -119,17 +119,35 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .need{color:var(--error);font-weight:700}
 .empty{font-size:14px;color:var(--muted);padding:18px 0}
 
+/* 재고·가격: 품목 한 줄(품명 / 판매가·남은 수량 / 수정) → 수정을 누르면 그 줄 아래에 입력칸 */
 details.stock{background:var(--carbon);border:1px solid var(--line);border-radius:10px}
 details.stock summary{cursor:pointer;padding:14px 16px;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:8px}
 details.stock summary span{font-weight:500;color:var(--muted);font-size:13px}
-.tbl-wrap{overflow-x:auto;border-top:1px solid var(--line)}
-table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
-th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
-th{font-size:12px;font-weight:600;color:var(--mist);background:var(--carbon-raised)}
-td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-td.left0{color:var(--muted)}
-td.hot{color:var(--lavender);font-weight:700}
-tr:last-child td{border-bottom:0}
+.stock-in{display:grid;gap:10px;padding:0 16px 16px}
+.stock-in .note{font-size:13px;line-height:20px;color:var(--mist)}
+.srows{display:grid;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.srow{display:grid;gap:12px;padding:12px 14px;border-top:1px solid var(--line);background:var(--carbon)}
+.srow:first-child{border-top:0}
+.srow.editing{background:var(--carbon-raised)}
+.srow-main{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px}
+.srow .nm{min-width:0}
+.srow .nm b{display:block;font-size:15px;line-height:21px;font-weight:700;word-break:keep-all}
+.srow .nm span{font-size:13px;line-height:18px;color:var(--mist)}
+.srow .nm .hold{color:var(--lavender);font-weight:600}
+.srow .pv{display:grid;justify-items:end;gap:2px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.srow .pv b{font-size:15px}
+.srow .pv span{font-size:13px;color:var(--mist)}
+.srow .pv span.zero{color:var(--muted)}
+.srow .saved{font-size:12px;font-weight:700;color:var(--success)}
+.btn-edit{height:36px;padding:0 12px;background:transparent;color:var(--foam);border:1px solid var(--tick);font-size:13px}
+.sedit{display:grid;gap:10px}
+.sfields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sfields label{display:grid;gap:6px;font-size:13px;font-weight:600}
+.unit-in{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--mist)}
+.unit-in .input{height:44px;text-align:right;font-variant-numeric:tabular-nums}
+.sedit .hint{font-size:12px;line-height:18px;color:var(--muted)}
+.sempty{font-size:14px;color:var(--muted);padding:14px}
+@media (max-width:420px){ .sfields{grid-template-columns:1fr} }
 
 @media (max-width:760px){
   .kpis{grid-template-columns:repeat(2,1fr)}
@@ -193,13 +211,12 @@ tr:last-child td{border-bottom:0}
       <p class="empty" id="ordersEmpty" hidden></p>
     </section>
 
-    <details class="stock">
-      <summary>품목별 재고 <span id="stockSum"></span></summary>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>종류</th><th>브랜드</th><th>품명</th><th class="n">판매가</th><th class="n">시작 재고</th><th class="n">대기</th><th class="n">확정</th><th class="n">남음</th></tr></thead>
-          <tbody id="stockRows"></tbody>
-        </table>
+    <details class="stock" id="stockBox">
+      <summary>재고·가격 수정 <span id="stockSum"></span></summary>
+      <div class="stock-in">
+        <p class="note">품목 옆 수정을 누르면 판매가와 남은 수량을 고칠 수 있어요. 저장하면 판매 목록에 바로 반영돼요.</p>
+        <input class="search" id="itemSearch" type="search" placeholder="브랜드, 품명으로 찾기" aria-label="품목 검색">
+        <div class="srows" id="stockRows"></div>
       </div>
     </details>
   </div>
@@ -213,6 +230,7 @@ tr:last-child td{border-bottom:0}
   const BASE=(CFG.supabaseUrl||'').replace(/\/$/,''), KEY=CFG.supabaseAnonKey||'';
   const SKEY='ll_admin_session';   // 사전예약 관리자와 같은 로그인을 쓴다
   let session=null, orders=[], items=[], timer=null, filter='pending', seen=null;
+  let heldBy={}, editing=null, savedId=null, savedT=null;   // 재고·가격: 품목별 대기·확정 수량, 고치는 중인 품목, 방금 저장한 품목
   try{ session=JSON.parse(sessionStorage.getItem(SKEY)||'null'); }catch(e){}
   function save(s){ session=s; try{ s?sessionStorage.setItem(SKEY,JSON.stringify(s)):sessionStorage.removeItem(SKEY); }catch(e){} }
   function showErr(el,msg){ el.hidden=!msg; el.querySelector('span').textContent=msg||''; }
@@ -284,10 +302,12 @@ tr:last-child td{border-bottom:0}
   const kindLabel=k=>k==='reel'?'릴':'로드';
   function el(tag,attrs,text){ const e=document.createElement(tag); if(attrs) for(const k in attrs) e.setAttribute(k,attrs[k]); if(text!=null) e.textContent=text; return e; }
   const STATUS={pending:'대기',confirmed:'확정',cancelled:'취소'};
+  // 주문 금액: 접수할 때 저장한 가격(unit_price). 그 칸이 생기기 전 주문만 지금 판매가로 계산
+  const amount=o=>o.qty*(o.unit_price ?? o.item.price);
 
   function render(){
     const by=s=>orders.filter(o=>o.status===s);
-    const sum=list=>list.reduce((a,o)=>a+o.qty*o.item.price,0);
+    const sum=list=>list.reduce((a,o)=>a+amount(o),0);
     const pend=by('pending'), conf=by('confirmed'), canc=by('cancelled');
     $('#kPend').textContent=pend.length; $('#kPendH').textContent=pend.length?nf.format(sum(pend))+'원 · '+pend.reduce((a,o)=>a+o.qty,0)+'개':'새 접수가 오면 여기에 보여요';
     $('#kConf').textContent=conf.length; $('#kConfH').textContent=nf.format(sum(conf))+'원 · '+conf.reduce((a,o)=>a+o.qty,0)+'개';
@@ -295,25 +315,14 @@ tr:last-child td{border-bottom:0}
     $('#cPend').textContent=pend.length; $('#cConf').textContent=conf.length; $('#cCanc').textContent=canc.length; $('#cAll').textContent=orders.length;
     document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.f===filter)));
 
-    // 품목별 재고
-    const held={};
-    orders.forEach(o=>{ if(o.status==='cancelled') return; held[o.item_id]=held[o.item_id]||{pending:0,confirmed:0}; held[o.item_id][o.status]+=o.qty; });
+    // 품목별 재고: 남은 수량 = 시작 재고 − 대기·확정
+    heldBy={};
+    orders.forEach(o=>{ if(o.status==='cancelled') return; heldBy[o.item_id]=heldBy[o.item_id]||{pending:0,confirmed:0}; heldBy[o.item_id][o.status]+=o.qty; });
     let leftR=0,leftD=0;
-    const tb=$('#stockRows'); tb.textContent='';
-    items.forEach(i=>{
-      const h=held[i.id]||{pending:0,confirmed:0}, left=Math.max(i.qty-h.pending-h.confirmed,0);
-      if(i.kind==='reel') leftR+=left; else leftD+=left;
-      const tr=el('tr');
-      [kindLabel(i.kind),i.brand,i.name].forEach(v=>tr.appendChild(el('td',null,v)));
-      tr.appendChild(el('td',{class:'n'},nf.format(i.price)));
-      tr.appendChild(el('td',{class:'n'},i.qty));
-      tr.appendChild(el('td',{class:'n'+(h.pending?' hot':'')},h.pending||'—'));
-      tr.appendChild(el('td',{class:'n'},h.confirmed||'—'));
-      tr.appendChild(el('td',{class:'n'+(left?'':' left0')},left||'품절'));
-      tb.appendChild(tr);
-    });
+    items.forEach(i=>{ if(i.kind==='reel') leftR+=leftOf(i); else leftD+=leftOf(i); });
     $('#kLeft').textContent=leftR+leftD; $('#kLeftH').textContent='릴 '+leftR+'개 · 로드 '+leftD+'개';
     $('#stockSum').textContent=items.length+'종 · 남은 '+(leftR+leftD)+'개';
+    renderStock();
 
     // 접수 카드
     const term=$('#search').value.trim().replace(/-/g,'').toLowerCase();
@@ -325,7 +334,7 @@ tr:last-child td{border-bottom:0}
       const live=g.filter(o=>o.status!=='cancelled');
       const sec=el('section',{class:'group'});
       const gh=el('div',{class:'group-h'}); gh.appendChild(el('h3',null,title));
-      gh.appendChild(el('small',null,g.length+'건 · 합계 '+nf.format(live.reduce((a,o)=>a+o.qty*o.item.price,0))+'원'+(live.length<g.length?' (취소 제외)':'')));
+      gh.appendChild(el('small',null,g.length+'건 · 합계 '+nf.format(sum(live))+'원'+(live.length<g.length?' (취소 제외)':'')));
       sec.appendChild(gh);
       const grid=el('div',{class:'grid'}); g.forEach(o=>grid.appendChild(card(o))); sec.appendChild(grid);
       box.appendChild(sec);
@@ -343,7 +352,7 @@ tr:last-child td{border-bottom:0}
     const it=el('div',{class:'item'}); it.appendChild(el('b',null,o.item.name)); it.appendChild(el('span',null,kindLabel(o.item.kind)+' · '+o.item.brand)); c.appendChild(it);
     const m=el('div',{class:'money'});
     const q=el('span',{class:'q'}); q.append('수량 '); q.appendChild(el('span',{class:'num'},o.qty)); q.append('개'); m.appendChild(q);
-    const t=el('span',{class:'t'}); t.appendChild(el('span',{class:'num'},nf.format(o.qty*o.item.price))); t.appendChild(el('small',null,'원')); m.appendChild(t);
+    const t=el('span',{class:'t'}); t.appendChild(el('span',{class:'num'},nf.format(amount(o)))); t.appendChild(el('small',null,'원')); m.appendChild(t);
     c.appendChild(m);
     const b=el('div',{class:'buyer'}); b.appendChild(el('b',null,o.name));
     if(o.phone){
@@ -381,12 +390,85 @@ tr:last-child td{border-bottom:0}
     });
     return b;
   }
+  // 재고·가격 수정: 판매가와 남은 수량을 받아 admin_set_item이 시작 재고(qty) = 남은 수량 + 대기·확정으로 저장한다
+  const holdOf=i=>heldBy[i.id]||{pending:0,confirmed:0};
+  const leftOf=i=>{ const h=holdOf(i); return Math.max(i.qty-h.pending-h.confirmed,0); };
+  const holdText=h=>[h.pending?'대기 '+h.pending+'개':'',h.confirmed?'확정 '+h.confirmed+'개':''].filter(Boolean).join(' · ');
+  // 고치는 중에는 15초 새로고침이 입력칸을 지우지 않게 다시 그리지 않는다
+  function renderStock(){
+    if(editing!==null) return;
+    const term=$('#itemSearch').value.trim().toLowerCase().replace(/\s/g,'');
+    const list=items.filter(i=>!term||(i.brand+i.name).toLowerCase().replace(/\s/g,'').includes(term));
+    const box=$('#stockRows'); box.textContent='';
+    list.forEach(i=>box.appendChild(srow(i)));
+    if(!list.length) box.appendChild(el('p',{class:'sempty'},term?'찾는 품목이 없어요. 검색어를 바꿔 보세요.':'아직 품목이 없어요.'));
+  }
+  function srow(i){
+    const h=holdOf(i), left=leftOf(i);
+    const r=el('div',{class:'srow',id:'s-'+i.id}), main=el('div',{class:'srow-main'});
+    const nm=el('div',{class:'nm'}); nm.appendChild(el('b',null,i.name));
+    const sub=el('span',null,kindLabel(i.kind)+' · '+i.brand);
+    if(h.pending||h.confirmed){ sub.append(' · '); sub.appendChild(el('span',{class:'hold'},holdText(h))); }
+    nm.appendChild(sub); main.appendChild(nm);
+    const pv=el('div',{class:'pv'}); pv.appendChild(el('b',null,nf.format(i.price)+'원'));
+    pv.appendChild(el('span',left?null:{class:'zero'},left?'남음 '+left+'개':'품절'));
+    if(savedId===i.id) pv.appendChild(el('span',{class:'saved'},'저장했어요'));
+    main.appendChild(pv);
+    const b=el('button',{type:'button',class:'btn btn-edit','aria-label':i.name+' 판매가·수량 수정'},'수정');
+    b.addEventListener('click',()=>openEdit(i.id));
+    main.appendChild(b); r.appendChild(main);
+    return r;
+  }
+  function numField(label,id,unit,val){
+    const l=el('label',{for:id}); l.append(label);
+    const w=el('span',{class:'unit-in'});
+    const inp=el('input',{class:'input',id,inputmode:'numeric',autocomplete:'off'}); inp.value=nf.format(val);
+    w.appendChild(inp); w.append(unit); l.appendChild(w);
+    return l;
+  }
+  function closeEdit(id){ editing=null; renderStock(); const b=$('#s-'+id+' .btn-edit'); if(b) b.focus(); }
+  function openEdit(id){
+    editing=null; savedId=null; renderStock();
+    const i=items.find(x=>x.id===id), r=$('#s-'+id); if(!i||!r) return;
+    editing=id; r.classList.add('editing'); r.querySelector('.btn-edit').hidden=true;
+    const h=holdOf(i), f=el('form',{class:'sedit',novalidate:''}), fields=el('div',{class:'sfields'});
+    fields.appendChild(numField('판매가','ep-'+id,'원',i.price));
+    fields.appendChild(numField('남은 수량','el-'+id,'개',leftOf(i)));
+    f.appendChild(fields);
+    f.appendChild(el('p',{class:'hint'},(h.pending||h.confirmed?'접수된 '+holdText(h)+'는 남은 수량과 따로 빠져 있어요. ':'')+'판매가를 바꿔도 이미 들어온 주문 금액은 그대로예요.'));
+    const err=el('p',{class:'err',hidden:''}); err.innerHTML='<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span>'; f.appendChild(err);
+    const acts=el('div',{class:'acts'}), save=el('button',{type:'submit',class:'btn btn-ok'},'저장하기'), close=el('button',{type:'button',class:'btn btn-line'},'닫기');
+    acts.appendChild(save); acts.appendChild(close); f.appendChild(acts);
+    close.addEventListener('click',()=>closeEdit(id));
+    f.addEventListener('keydown',e=>{ if(e.key==='Escape') closeEdit(id); });
+    const MSG={price:'판매가를 1원에서 1,000만원 사이 숫자로 입력해 주세요.',left:'남은 수량을 0에서 9,999 사이 숫자로 입력해 주세요.',item:'품목을 찾지 못했어요. 새로고침한 뒤 다시 시도해 주세요.'};
+    const num=v=>{ const d=String(v).replace(/[,\s원개]/g,''); return /^\d+$/.test(d)?Number(d):NaN; };
+    f.addEventListener('submit',async e=>{
+      e.preventDefault();
+      const price=num($('#ep-'+id).value), left=num($('#el-'+id).value);
+      if(!(price>=1&&price<=10000000)){ showErr(err,MSG.price); $('#ep-'+id).focus(); return; }
+      if(!(left>=0&&left<=9999)){ showErr(err,MSG.left); $('#el-'+id).focus(); return; }
+      showErr(err,''); save.disabled=true; save.textContent='저장하는 중…';
+      try{
+        const res=await api('/rest/v1/rpc/admin_set_item',{method:'POST',body:JSON.stringify({p_id:id,p_price:price,p_left:left})});
+        if(!res||!res.ok){ save.disabled=false; save.textContent='저장하기'; showErr(err,MSG[res&&res.code]||'저장하지 못했어요. 새로고침한 뒤 다시 시도해 주세요.'); return; }
+        editing=null; savedId=id; clearTimeout(savedT); savedT=setTimeout(()=>{ savedId=null; renderStock(); },4000);
+        await load();
+      }catch(x){
+        if(x.message==='expired') return;
+        save.disabled=false; save.textContent='저장하기'; showErr(err,'저장하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.');
+      }
+    });
+    r.appendChild(f);
+    const first=$('#ep-'+id); first.focus(); first.select();
+  }
+  $('#itemSearch').addEventListener('input',()=>{ editing=null; renderStock(); });
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{ filter=t.dataset.f; render(); }));
   $('#search').addEventListener('input',render);
   $('#csvBtn').addEventListener('click',()=>{
     const head=['접수번호','접수 시각','상태','종류','브랜드','품명','수량','금액','이름','휴대폰','배송 주소','메모','접수 경로'];
     const esc=v=>{ const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-    const lines=[head.join(',')].concat(orders.map(o=>[o.id,fmt(new Date(o.created_at)),STATUS[o.status],kindLabel(o.item.kind),o.item.brand,o.item.name,o.qty,o.qty*o.item.price,o.name,o.phone?phone(o.phone):'',o.address||'',o.memo||'',o.source==='chat'?'우리가 입력':'링크 구매'].map(esc).join(',')));
+    const lines=[head.join(',')].concat(orders.map(o=>[o.id,fmt(new Date(o.created_at)),STATUS[o.status],kindLabel(o.item.kind),o.item.brand,o.item.name,o.qty,amount(o),o.name,o.phone?phone(o.phone):'',o.address||'',o.memo||'',o.source==='chat'?'우리가 입력':'링크 구매'].map(esc).join(',')));
     const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download='창고털이_구매접수_'+new Date().toISOString().slice(0,10)+'.csv';

@@ -42,6 +42,9 @@ alter table public.stock_orders add column if not exists source text not null de
 alter table public.stock_orders alter column phone drop not null;
 alter table public.stock_orders drop constraint if exists stock_orders_phone_check;
 alter table public.stock_orders add constraint stock_orders_phone_check check (phone is null or phone ~ '^01[016789][0-9]{7,8}$');
+-- 주문 당시 가격: 판매가를 나중에 바꿔도 지난 주문 금액이 바뀌지 않게. 이 칸이 생기기 전 주문은 그때 가격으로 채웠다
+alter table public.stock_orders add column if not exists unit_price int check (unit_price is null or unit_price >= 0);
+update public.stock_orders o set unit_price = i.price from public.stock_items i where i.id = o.item_id and o.unit_price is null;
 alter table public.stock_orders drop constraint if exists stock_orders_agree_privacy_check;
 alter table public.stock_orders add constraint stock_orders_agree_privacy_check check (agree_privacy or source = 'chat');
 alter table public.stock_orders add constraint stock_orders_page_phone check (source = 'chat' or phone is not null);
@@ -96,13 +99,14 @@ declare
   q int  := coalesce(p_qty, 0);
   left_now int;
   lim int;
+  unit int;
   oid bigint;
 begin
   if not coalesce(p_agree, false) then return json_build_object('ok', false, 'code', 'agree'); end if;
   if n = '' or char_length(n) > 40 then return json_build_object('ok', false, 'code', 'name'); end if;
   if d !~ '^01[016789][0-9]{7,8}$' then return json_build_object('ok', false, 'code', 'phone'); end if;
   if q < 1 or q > 10 then return json_build_object('ok', false, 'code', 'qty'); end if;
-  select max_qty into lim from stock_items where id = p_item for update;
+  select max_qty, price into lim, unit from stock_items where id = p_item for update;
   if not found then return json_build_object('ok', false, 'code', 'item'); end if;
   if q > coalesce(lim, 10) then return json_build_object('ok', false, 'code', 'qty', 'max', coalesce(lim, 10)); end if;
   -- 한 번호로 접수 대기 중인 주문은 5건까지(장난 접수로 재고가 묶이지 않게)
@@ -111,7 +115,7 @@ begin
   end if;
   left_now := public.stock_left(p_item);
   if left_now < q then return json_build_object('ok', false, 'code', 'soldout', 'left', greatest(left_now, 0)); end if;
-  insert into stock_orders (item_id, qty, name, phone, agree_privacy) values (p_item, q, n, d, true) returning id into oid;
+  insert into stock_orders (item_id, qty, name, phone, agree_privacy, unit_price) values (p_item, q, n, d, true, unit) returning id into oid;
   return json_build_object('ok', true, 'order', oid, 'left', left_now - q,
     'account', (select json_object_agg(replace(key, 'account_', ''), value) from stock_settings where key like 'account_%'));
 end $$;
@@ -152,3 +156,24 @@ revoke execute on function public.admin_set_order(bigint,text) from public, anon
 grant execute on function public.stock_list() to anon, authenticated;
 grant execute on function public.place_order(int,int,text,text,boolean) to anon, authenticated;
 grant execute on function public.admin_set_order(bigint,text) to authenticated;
+
+-- 8) 관리자: 판매가·남은 수량 고치기(관리자 페이지 '재고·가격 수정')
+--    남은 수량을 받아서 시작 재고(qty) = 남은 수량 + 대기·확정 수량으로 바꾼다. 접수된 주문은 건드리지 않는다.
+--    품목을 먼저 잠가서 place_order와 동시에 실행돼도 수량이 어긋나지 않는다.
+create or replace function public.admin_set_item(p_id int, p_price int, p_left int)
+returns json
+language plpgsql security definer set search_path = public
+as $$
+declare held int;
+begin
+  if not public.is_admin() then raise exception 'not_admin'; end if;
+  if p_price is null or p_price < 1 or p_price > 10000000 then return json_build_object('ok', false, 'code', 'price'); end if;
+  if p_left is null or p_left < 0 or p_left > 9999 then return json_build_object('ok', false, 'code', 'left'); end if;
+  perform 1 from stock_items where id = p_id for update;
+  if not found then return json_build_object('ok', false, 'code', 'item'); end if;
+  select coalesce(sum(qty), 0)::int into held from stock_orders where item_id = p_id and status in ('pending','confirmed');
+  update stock_items set price = p_price, qty = p_left + held where id = p_id;
+  return json_build_object('ok', true, 'qty', p_left + held, 'left', p_left);
+end $$;
+revoke execute on function public.admin_set_item(int,int,int) from public, anon;
+grant execute on function public.admin_set_item(int,int,int) to authenticated;

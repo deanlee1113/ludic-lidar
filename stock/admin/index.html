@@ -106,6 +106,11 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .acts{display:flex;gap:8px;flex-wrap:wrap}
 .acts .btn{flex:1}
 .card.cancelled{opacity:.6}
+.src{display:inline-block;margin-right:6px;padding:1px 6px;border-radius:2px;background:var(--plum);color:var(--lavender);font-size:11px;font-weight:700}
+.ship{display:grid;gap:4px;padding:10px 12px;border-radius:8px;background:var(--field);border:1px solid var(--line);font-size:14px;line-height:20px;word-break:keep-all}
+.ship .k{font-size:12px;color:var(--muted)}
+.ship .memo{color:var(--mist)}
+.need{color:var(--error);font-weight:700}
 .empty{font-size:14px;color:var(--muted);padding:18px 0}
 
 details.stock{background:var(--carbon);border:1px solid var(--line);border-radius:10px}
@@ -306,7 +311,7 @@ tr:last-child td{border-bottom:0}
 
     // 접수 카드
     const term=$('#search').value.trim().replace(/-/g,'').toLowerCase();
-    const list=(filter==='all'?orders:by(filter)).filter(o=>!term||(o.name+o.phone+o.item.brand+o.item.name).toLowerCase().replace(/\s/g,'').includes(term.replace(/\s/g,'')));
+    const list=(filter==='all'?orders:by(filter)).filter(o=>!term||(o.name+(o.phone||'')+(o.address||'')+(o.memo||'')+o.item.brand+o.item.name).toLowerCase().replace(/\s/g,'').includes(term.replace(/\s/g,'')));
     const box=$('#orders'); box.textContent='';
     list.forEach(o=>box.appendChild(card(o)));
     const empty=$('#ordersEmpty');
@@ -317,7 +322,7 @@ tr:last-child td{border-bottom:0}
     const c=el('article',{class:'card '+o.status+(seen&&!seen.has(o.id)&&o.status==='pending'?' new':'')});
     const h=el('div',{class:'card-h'});
     h.appendChild(el('span',{class:'st '+o.status},STATUS[o.status]));
-    h.appendChild(el('span',null,'#'+o.id+' · '+fmt(new Date(o.created_at))));
+    const hs=el('span'); if(o.source==='chat') hs.appendChild(el('span',{class:'src'},'채팅 접수')); hs.append('#'+o.id+' · '+fmt(new Date(o.created_at))); h.appendChild(hs);
     c.appendChild(h);
     const it=el('div',{class:'item'}); it.appendChild(el('b',null,o.item.name)); it.appendChild(el('span',null,kindLabel(o.item.kind)+' · '+o.item.brand)); c.appendChild(it);
     const m=el('div',{class:'money'});
@@ -325,8 +330,18 @@ tr:last-child td{border-bottom:0}
     const t=el('span',{class:'t'}); t.appendChild(el('span',{class:'num'},nf.format(o.qty*o.item.price))); t.appendChild(el('small',null,'원')); m.appendChild(t);
     c.appendChild(m);
     const b=el('div',{class:'buyer'}); b.appendChild(el('b',null,o.name));
-    const tel=el('a',{class:'tel',href:'tel:'+o.phone}); tel.innerHTML='<svg class="ico" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>'; tel.append(phone(o.phone));
-    b.appendChild(tel); c.appendChild(b);
+    if(o.phone){
+      const tel=el('a',{class:'tel',href:'tel:'+o.phone}); tel.innerHTML='<svg class="ico" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>'; tel.append(phone(o.phone));
+      b.appendChild(tel);
+    } else b.appendChild(el('span',{class:'need'},'휴대폰 번호 없음'));
+    c.appendChild(b);
+    // 채팅으로 받은 주문: 배송 주소와 메모(유튜브 아이디 등)
+    if(o.address||o.memo){
+      const sh=el('div',{class:'ship'});
+      if(o.address){ sh.appendChild(el('span',{class:'k'},'배송 주소')); sh.appendChild(el('span',null,o.address)); }
+      if(o.memo) sh.appendChild(el('span',{class:'memo'},o.memo));
+      c.appendChild(sh);
+    }
     const a=el('div',{class:'acts'});
     if(o.status==='pending'){ a.appendChild(act(o,'confirmed','확정','btn-ok')); a.appendChild(act(o,'cancelled','취소','btn-line',true)); }
     if(o.status==='confirmed'){ a.appendChild(act(o,'pending','대기로 되돌리기','btn-line')); a.appendChild(act(o,'cancelled','취소','btn-line',true)); }
@@ -353,9 +368,9 @@ tr:last-child td{border-bottom:0}
   document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{ filter=t.dataset.f; render(); }));
   $('#search').addEventListener('input',render);
   $('#csvBtn').addEventListener('click',()=>{
-    const head=['접수번호','접수 시각','상태','종류','브랜드','품명','수량','금액','이름','휴대폰'];
+    const head=['접수번호','접수 시각','상태','종류','브랜드','품명','수량','금액','이름','휴대폰','배송 주소','메모','접수 경로'];
     const esc=v=>{ const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-    const lines=[head.join(',')].concat(orders.map(o=>[o.id,fmt(new Date(o.created_at)),STATUS[o.status],kindLabel(o.item.kind),o.item.brand,o.item.name,o.qty,o.qty*o.item.price,o.name,phone(o.phone)].map(esc).join(',')));
+    const lines=[head.join(',')].concat(orders.map(o=>[o.id,fmt(new Date(o.created_at)),STATUS[o.status],kindLabel(o.item.kind),o.item.brand,o.item.name,o.qty,o.qty*o.item.price,o.name,o.phone?phone(o.phone):'',o.address||'',o.memo||'',o.source==='chat'?'채팅':'페이지'].map(esc).join(',')));
     const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download='창고털이_구매접수_'+new Date().toISOString().slice(0,10)+'.csv';

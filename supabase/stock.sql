@@ -34,6 +34,17 @@ create table if not exists public.stock_orders (
   status     text not null default 'pending' check (status in ('pending','confirmed','cancelled')),
   agree_privacy boolean not null check (agree_privacy)
 );
+-- 채팅·방송으로 받은 주문도 같은 표에 기록한다(관리자가 SQL로 넣음): 배송 주소, 메모(유튜브 아이디 등), 접수 경로
+--   채팅 주문은 번호를 나중에 받을 수 있고 페이지 동의 체크가 없다. 페이지 주문은 번호·동의가 반드시 있다.
+alter table public.stock_orders add column if not exists address text check (address is null or char_length(address) <= 300);
+alter table public.stock_orders add column if not exists memo text check (memo is null or char_length(memo) <= 300);
+alter table public.stock_orders add column if not exists source text not null default 'page' check (source in ('page','chat'));
+alter table public.stock_orders alter column phone drop not null;
+alter table public.stock_orders drop constraint if exists stock_orders_phone_check;
+alter table public.stock_orders add constraint stock_orders_phone_check check (phone is null or phone ~ '^01[016789][0-9]{7,8}$');
+alter table public.stock_orders drop constraint if exists stock_orders_agree_privacy_check;
+alter table public.stock_orders add constraint stock_orders_agree_privacy_check check (agree_privacy or source = 'chat');
+alter table public.stock_orders add constraint stock_orders_page_phone check (source = 'chat' or phone is not null);
 create index if not exists stock_orders_item_idx on public.stock_orders (item_id);
 create index if not exists stock_orders_phone_idx on public.stock_orders (phone);
 alter table public.stock_orders enable row level security;

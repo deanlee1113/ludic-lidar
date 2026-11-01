@@ -89,6 +89,8 @@ button,input{font:inherit}
 .item+.item{border-top:1px solid var(--line)}
 .item .name{min-width:0;display:grid;gap:4px}
 .item .name b{font-size:16px;line-height:22px;font-weight:700;word-break:keep-all;overflow-wrap:anywhere}
+.spec{display:flex;flex-wrap:wrap;gap:4px 6px;font-size:13px;line-height:18px;color:var(--mist);word-break:keep-all}
+.spec .yr{flex:none;font-weight:700;color:var(--foam);background:var(--glass-hi);border:1px solid var(--glass-edge);padding:0 6px;border-radius:2px}
 .qty{font-size:13px;line-height:18px;font-weight:600;color:var(--mist)}
 .qty .num{font-size:16px;font-weight:900;color:var(--lavender);margin:0 1px}
 .side{flex:none;display:grid;justify-items:end;gap:8px}
@@ -226,6 +228,7 @@ details dd{margin:0}
 
 <footer class="foot wrap">
   <p class="note">수량은 실시간으로 바뀌어요. 접수하면 담당자가 연락드리고, 계좌로 입금하면 오후 3시 전 입금 건은 당일 발송해요.</p>
+  <p class="note">로드의 연식과 용도는 제조사 홈페이지·공식몰·판매처 상세 페이지에 나온 내용을 옮겼어요. 연식이 없는 품목은 출시 연도가 나온 자료를 찾지 못한 거예요.</p>
   <img src="../assets/logo-white.webp" alt="" width="232" height="57">
 </footer>
 
@@ -241,6 +244,7 @@ details dd{margin:0}
         <div class="pick">
           <span class="b" id="pBrand"></span>
           <strong id="pName"></strong>
+          <span id="pSpec"></span>
           <div class="row"><span class="price"><span class="num" id="pPrice"></span><small>원</small></span><small id="pLeft"></small></div>
         </div>
         <fieldset class="field">
@@ -333,6 +337,11 @@ details dd{margin:0}
   // 띄어쓰기·대소문자·하이픈을 무시하고 찾는다(예: "c3000" → C3000SDH)
   const norm=s=>s.toLowerCase().replace(/[\s\-()]/g,'');
 
+  // 연식·용도: 제조사·판매처 자료로 확인한 것만 DB에 넣고, 없으면 줄을 그리지 않는다
+  function spec(i){
+    if(!i.model_year&&!i.fishing) return '';
+    return '<span class="spec">'+(i.model_year?'<span class="yr">'+esc(i.model_year)+'</span>':'')+(i.fishing?'<span>'+esc(i.fishing)+'</span>':'')+'</span>';
+  }
   function render(){
     document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',String(t.dataset.kind===kind)));
     list.setAttribute('aria-labelledby','tab-'+kind);
@@ -345,7 +354,7 @@ details dd{margin:0}
     list.innerHTML=brands.map(b=>{
       const its=rows.filter(r=>r.brand===b);
       return '<section class="brand"><h2>'+esc(b)+' <small>'+its.length+'종</small></h2><ul class="items">'+
-        its.map(i=>'<li class="item'+(i.left?'':' sold')+'"><div class="name"><b>'+esc(i.name)+'</b>'+
+        its.map(i=>'<li class="item'+(i.left?'':' sold')+'"><div class="name"><b>'+esc(i.name)+'</b>'+spec(i)+
           (i.left?'<span class="qty">남은 수량 <span class="num">'+i.left+'</span>개</span>':'<span class="badge-sold">품절</span>')+
           '</div><div class="side"><div class="price"><span class="num">'+won(i.price)+'</span><small>원</small></div>'+
           (i.left?'<button type="button" class="buy" data-id="'+i.id+'">구매하기</button>':'')+'</div></li>').join('')+
@@ -397,6 +406,7 @@ details dd{margin:0}
     qty=1; ['bn','bp','ag','send'].forEach(k=>setErr(k,''));
     $('#pBrand').textContent=current.brand+' · '+(current.kind==='reel'?'릴':'로드');
     $('#pName').textContent=current.name; $('#pPrice').textContent=won(current.price);
+    $('#pSpec').innerHTML=spec(current);
     try{ const s=JSON.parse(localStorage.getItem(LKEY)||'null'); if(s){ if(!bn.value) bn.value=s.name||''; if(!bp.value) bp.value=s.phone||''; } }catch(e){}
     $('#formView').hidden=false; $('#doneView').hidden=true; syncPick();
     sheet.showModal();

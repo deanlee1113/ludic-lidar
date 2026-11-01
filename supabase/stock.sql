@@ -14,6 +14,9 @@ create table if not exists public.stock_items (
   sort  int  not null
 );
 alter table public.stock_items enable row level security;
+-- 연식·주 용도: 제조사·판매처 자료로 확인한 것만 넣는다(모르면 비워 둠)
+alter table public.stock_items add column if not exists model_year text;
+alter table public.stock_items add column if not exists fishing text;
 
 -- 2) 구매 접수
 create table if not exists public.stock_orders (
@@ -46,13 +49,14 @@ as $$
   from stock_items i where i.id = p_item
 $$;
 
--- 4) 방문자용 목록: 품명·가격·남은 수량만
+-- 4) 방문자용 목록: 품명·연식·용도·가격·남은 수량만
 create or replace function public.stock_list()
 returns json
 language sql stable security definer set search_path = public
 as $$
   select coalesce(json_agg(json_build_object(
            'id', i.id, 'kind', i.kind, 'brand', i.brand, 'name', i.name,
+           'model_year', i.model_year, 'fishing', i.fishing,
            'price', i.price, 'left', greatest(public.stock_left(i.id), 0))
          order by i.kind desc, i.sort), '[]'::json)
   from stock_items i

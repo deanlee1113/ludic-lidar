@@ -85,7 +85,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .search{flex:1;min-width:200px;height:44px;padding:0 12px;background:var(--field);color:var(--foam);border:1px solid var(--tick);border-radius:4px;font-size:15px}
 .search::placeholder{color:var(--muted)}
 
-.orders{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+.orders{display:grid;gap:24px}
+.group{display:grid;gap:10px}
+.group-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.group-h h3{font-size:18px;line-height:26px}
+.group-h small{font-size:13px;font-weight:600;color:var(--mist)}
+.group .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
 .card{background:var(--carbon);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:10px}
 .card.new{border-color:var(--lavender);box-shadow:0 0 0 1px var(--lavender)}
 .card-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
@@ -107,6 +112,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .acts .btn{flex:1}
 .card.cancelled{opacity:.6}
 .src{display:inline-block;margin-right:6px;padding:1px 6px;border-radius:2px;background:var(--plum);color:var(--lavender);font-size:11px;font-weight:700}
+.src.page{background:var(--field);color:var(--foam);border:1px solid var(--tick)}
 .ship{display:grid;gap:4px;padding:10px 12px;border-radius:8px;background:var(--field);border:1px solid var(--line);font-size:14px;line-height:20px;word-break:keep-all}
 .ship .k{font-size:12px;color:var(--muted)}
 .ship .memo{color:var(--mist)}
@@ -313,7 +319,17 @@ tr:last-child td{border-bottom:0}
     const term=$('#search').value.trim().replace(/-/g,'').toLowerCase();
     const list=(filter==='all'?orders:by(filter)).filter(o=>!term||(o.name+(o.phone||'')+(o.address||'')+(o.memo||'')+o.item.brand+o.item.name).toLowerCase().replace(/\s/g,'').includes(term.replace(/\s/g,'')));
     const box=$('#orders'); box.textContent='';
-    list.forEach(o=>box.appendChild(card(o)));
+    // 링크(판매 목록)에서 손님이 구매한 것과 우리가 직접 입력한 것을 나눠 보여 준다
+    [['page','링크에서 구매'],['chat','우리가 입력']].forEach(([src,title])=>{
+      const g=list.filter(o=>(o.source||'page')===src); if(!g.length) return;
+      const live=g.filter(o=>o.status!=='cancelled');
+      const sec=el('section',{class:'group'});
+      const gh=el('div',{class:'group-h'}); gh.appendChild(el('h3',null,title));
+      gh.appendChild(el('small',null,g.length+'건 · 합계 '+nf.format(live.reduce((a,o)=>a+o.qty*o.item.price,0))+'원'+(live.length<g.length?' (취소 제외)':'')));
+      sec.appendChild(gh);
+      const grid=el('div',{class:'grid'}); g.forEach(o=>grid.appendChild(card(o))); sec.appendChild(grid);
+      box.appendChild(sec);
+    });
     const empty=$('#ordersEmpty');
     empty.hidden=list.length>0;
     empty.textContent=term?'찾는 접수가 없어요. 검색어를 바꿔 보세요.':{pending:'연락할 접수가 없어요. 새 접수가 들어오면 여기에 바로 보여요.',confirmed:'아직 확정한 접수가 없어요.',cancelled:'취소한 접수가 없어요.',all:'아직 들어온 접수가 없어요.'}[filter];
@@ -322,7 +338,7 @@ tr:last-child td{border-bottom:0}
     const c=el('article',{class:'card '+o.status+(seen&&!seen.has(o.id)&&o.status==='pending'?' new':'')});
     const h=el('div',{class:'card-h'});
     h.appendChild(el('span',{class:'st '+o.status},STATUS[o.status]));
-    const hs=el('span'); if(o.source==='chat') hs.appendChild(el('span',{class:'src'},'채팅 접수')); hs.append('#'+o.id+' · '+fmt(new Date(o.created_at))); h.appendChild(hs);
+    const hs=el('span'); hs.appendChild(o.source==='chat'?el('span',{class:'src'},'우리가 입력'):el('span',{class:'src page'},'링크 구매')); hs.append('#'+o.id+' · '+fmt(new Date(o.created_at))); h.appendChild(hs);
     c.appendChild(h);
     const it=el('div',{class:'item'}); it.appendChild(el('b',null,o.item.name)); it.appendChild(el('span',null,kindLabel(o.item.kind)+' · '+o.item.brand)); c.appendChild(it);
     const m=el('div',{class:'money'});
@@ -370,7 +386,7 @@ tr:last-child td{border-bottom:0}
   $('#csvBtn').addEventListener('click',()=>{
     const head=['접수번호','접수 시각','상태','종류','브랜드','품명','수량','금액','이름','휴대폰','배송 주소','메모','접수 경로'];
     const esc=v=>{ const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
-    const lines=[head.join(',')].concat(orders.map(o=>[o.id,fmt(new Date(o.created_at)),STATUS[o.status],kindLabel(o.item.kind),o.item.brand,o.item.name,o.qty,o.qty*o.item.price,o.name,o.phone?phone(o.phone):'',o.address||'',o.memo||'',o.source==='chat'?'채팅':'페이지'].map(esc).join(',')));
+    const lines=[head.join(',')].concat(orders.map(o=>[o.id,fmt(new Date(o.created_at)),STATUS[o.status],kindLabel(o.item.kind),o.item.brand,o.item.name,o.qty,o.qty*o.item.price,o.name,o.phone?phone(o.phone):'',o.address||'',o.memo||'',o.source==='chat'?'우리가 입력':'링크 구매'].map(esc).join(',')));
     const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download='창고털이_구매접수_'+new Date().toISOString().slice(0,10)+'.csv';

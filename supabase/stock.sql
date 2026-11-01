@@ -17,6 +17,10 @@ alter table public.stock_items enable row level security;
 -- 연식·주 용도: 제조사·판매처 자료로 확인한 것만 넣는다(모르면 비워 둠)
 alter table public.stock_items add column if not exists model_year text;
 alter table public.stock_items add column if not exists fishing text;
+-- 추천 품목(루딕 라이다): 배지 문구, 줄 그어 보여 줄 기존 판매가, 한 번에 접수할 수 있는 최대 수량(없으면 10)
+alter table public.stock_items add column if not exists badge text;
+alter table public.stock_items add column if not exists was_price int check (was_price is null or was_price >= 0);
+alter table public.stock_items add column if not exists max_qty int check (max_qty is null or max_qty between 1 and 10);
 
 -- 2) 구매 접수
 create table if not exists public.stock_orders (
@@ -57,6 +61,7 @@ as $$
   select coalesce(json_agg(json_build_object(
            'id', i.id, 'kind', i.kind, 'brand', i.brand, 'name', i.name,
            'model_year', i.model_year, 'fishing', i.fishing,
+           'badge', i.badge, 'was_price', i.was_price, 'max_qty', i.max_qty,
            'price', i.price, 'left', greatest(public.stock_left(i.id), 0))
          order by i.kind desc, i.sort), '[]'::json)
   from stock_items i
@@ -73,14 +78,16 @@ declare
   n text := btrim(coalesce(p_name, ''));
   q int  := coalesce(p_qty, 0);
   left_now int;
+  lim int;
   oid bigint;
 begin
   if not coalesce(p_agree, false) then return json_build_object('ok', false, 'code', 'agree'); end if;
   if n = '' or char_length(n) > 40 then return json_build_object('ok', false, 'code', 'name'); end if;
   if d !~ '^01[016789][0-9]{7,8}$' then return json_build_object('ok', false, 'code', 'phone'); end if;
   if q < 1 or q > 10 then return json_build_object('ok', false, 'code', 'qty'); end if;
-  perform 1 from stock_items where id = p_item for update;
+  select max_qty into lim from stock_items where id = p_item for update;
   if not found then return json_build_object('ok', false, 'code', 'item'); end if;
+  if q > coalesce(lim, 10) then return json_build_object('ok', false, 'code', 'qty', 'max', coalesce(lim, 10)); end if;
   -- 한 번호로 접수 대기 중인 주문은 5건까지(장난 접수로 재고가 묶이지 않게)
   if (select count(*) from stock_orders where phone = d and status = 'pending') >= 5 then
     return json_build_object('ok', false, 'code', 'limit');

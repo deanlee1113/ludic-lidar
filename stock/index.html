@@ -83,6 +83,11 @@ button,input{font:inherit}
 .brand{display:grid;gap:8px}
 .brand h2{display:flex;align-items:baseline;gap:8px;font-size:22px;line-height:30px}
 .brand h2 small{font-family:var(--font-body);font-size:13px;font-weight:600;color:var(--muted)}
+.feat{align-self:center;display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:2px;background:var(--flare);color:var(--ink);
+  font-family:var(--font-body);font-size:13px;font-weight:700;line-height:1}
+.brand.featured .items{border:2px solid var(--violet);box-shadow:0 0 0 4px var(--glow-violet-soft)}
+.brand .lead-note{font-size:13px;line-height:20px;color:var(--mist)}
+.was{font-size:13px;line-height:16px;font-weight:600;color:var(--muted);text-decoration:line-through}
 .items{list-style:none;margin:0;padding:0;border:1px solid var(--glass-edge);border-radius:10px;background:var(--glass);overflow:hidden;
   -webkit-backdrop-filter:blur(18px) saturate(140%);backdrop-filter:blur(18px) saturate(140%)}
 .item{padding:14px 16px}
@@ -383,11 +388,12 @@ details dd{margin:0}
     const rows=items.filter(i=>i.kind===kind&&(!term||norm(i.brand+i.name).includes(term)));
     const brands=[...new Set(rows.map(r=>r.brand))];
     list.innerHTML=brands.map(b=>{
-      const its=rows.filter(r=>r.brand===b);
-      return '<section class="brand"><h2>'+esc(b)+' <small>'+its.length+'종</small></h2><ul class="items">'+
+      const its=rows.filter(r=>r.brand===b), badge=(its.find(r=>r.badge)||{}).badge, lim=(its.find(r=>r.max_qty)||{}).max_qty;
+      return '<section class="brand'+(badge?' featured':'')+'"><h2>'+(badge?'<span class="feat">'+esc(badge)+'</span>':'')+esc(b)+' <small>'+its.length+'종</small></h2>'+
+        (badge&&lim?'<p class="lead-note">라이브 특가예요. 한 번에 '+lim+'개까지 접수할 수 있어요.</p>':'')+'<ul class="items">'+
         its.map(i=>'<li class="item'+(i.left?'':' sold')+'"><div class="item-row"><div class="name"><b>'+esc(i.name)+'</b>'+spec(i)+
           (i.left?'<span class="qty">남은 수량 <span class="num">'+i.left+'</span>개</span>':'<span class="badge-sold">품절</span>')+moreBtn(i)+
-          '</div><div class="side"><div class="price"><span class="num">'+won(i.price)+'</span><small>원</small></div>'+
+          '</div><div class="side">'+(i.was_price>i.price?'<s class="was">'+won(i.was_price)+'원</s>':'')+'<div class="price"><span class="num">'+won(i.price)+'</span><small>원</small></div>'+
           (i.left?'<button type="button" class="buy" data-id="'+i.id+'">구매하기</button>':'')+'</div></div>'+detail(i)+'</li>').join('')+
         '</ul></section>';
     }).join('');
@@ -421,7 +427,7 @@ details dd{margin:0}
     const el=$('#'+key+'-err'); el.hidden=!msg; el.querySelector('span').textContent=msg||'';
     const t={bn,bp}[key]; if(t) t.setAttribute('aria-invalid',msg?'true':'false');
   }
-  function maxQty(){ return Math.min(current?current.left:0,10); }
+  function maxQty(){ return Math.min(current?current.left:0,current&&current.max_qty||10); }
   function paintQty(){
     const m=maxQty(); qty=Math.max(1,Math.min(qty,m||1));
     $('#qv').textContent=qty; $('#dec').disabled=qty<=1; $('#inc').disabled=qty>=m;
@@ -429,7 +435,7 @@ details dd{margin:0}
   }
   function syncPick(){
     const fresh=items.find(i=>i.id===current.id); if(fresh) current=fresh;
-    $('#pLeft').textContent=current.left?'남은 수량 '+current.left+'개':'품절';
+    $('#pLeft').textContent=current.left?'남은 수량 '+current.left+'개'+(current.max_qty?' · 한 번에 '+current.max_qty+'개까지':''):'품절';
     send.disabled=busy||!current.left; paintQty();
   }
   function open(id){
@@ -486,7 +492,7 @@ details dd{margin:0}
         load(); syncPick(); return;
       }
       const map={name:['bn','이름을 40자 이내로 입력해 주세요'],phone:['bp','휴대폰 번호를 010-1234-5678 형식으로 입력해 주세요'],
-        agree:['ag','개인정보 수집·이용에 동의해 주세요'],limit:['send','이 번호로 접수 대기 중인 주문이 5건이에요. 담당자 연락을 받은 뒤 다시 접수해 주세요.']};
+        agree:['ag','개인정보 수집·이용에 동의해 주세요'],qty:['send','한 번에 '+(res.max||10)+'개까지 접수할 수 있어요. 수량을 줄여 주세요.'],limit:['send','이 번호로 접수 대기 중인 주문이 5건이에요. 담당자 연락을 받은 뒤 다시 접수해 주세요.']};
       const [k,msg]=map[res.code]||['send','접수하지 못했어요. 목록을 새로 불러온 뒤 다시 시도해 주세요.'];
       setErr(k,msg); return;
     }

@@ -182,3 +182,22 @@ begin
 end $$;
 revoke execute on function public.admin_set_item(int,int,int) from public, anon;
 grant execute on function public.admin_set_item(int,int,int) to authenticated;
+
+-- 9) 관리자: 주문에 배송 주소·메모 남기기(관리자 페이지 주문 카드). 빈칸으로 저장하면 지운다
+create or replace function public.admin_set_order_info(p_id bigint, p_address text, p_memo text)
+returns json
+language plpgsql security definer set search_path = public
+as $$
+declare
+  a text := nullif(btrim(coalesce(p_address, '')), '');
+  m text := nullif(btrim(coalesce(p_memo, '')), '');
+begin
+  if not public.is_admin() then raise exception 'not_admin'; end if;
+  if char_length(a) > 300 then return json_build_object('ok', false, 'code', 'address'); end if;
+  if char_length(m) > 300 then return json_build_object('ok', false, 'code', 'memo'); end if;
+  update stock_orders set address = a, memo = m, updated_at = now() where id = p_id;
+  if not found then return json_build_object('ok', false, 'code', 'order'); end if;
+  return json_build_object('ok', true);
+end $$;
+revoke execute on function public.admin_set_order_info(bigint,text,text) from public, anon;
+grant execute on function public.admin_set_order_info(bigint,text,text) to authenticated;

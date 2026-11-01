@@ -115,7 +115,16 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .src.page{background:var(--field);color:var(--foam);border:1px solid var(--tick)}
 .ship{display:grid;gap:4px;padding:10px 12px;border-radius:8px;background:var(--field);border:1px solid var(--line);font-size:14px;line-height:20px;word-break:keep-all}
 .ship .k{font-size:12px;color:var(--muted)}
-.ship .memo{color:var(--mist)}
+.ship .memo{color:var(--mist);white-space:pre-line}
+.ship-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.btn-mini{height:28px;padding:0 10px;background:transparent;color:var(--lavender);border:1px solid var(--line);font-size:12px}
+.add-info{height:40px;width:100%;background:transparent;color:var(--mist);border:1px dashed var(--tick);font-size:14px}
+/* 주소·메모 입력: 카드 안에서 바로 쓰고 저장 */
+.oedit{display:grid;gap:8px;padding:12px;border-radius:8px;background:var(--field);border:1px solid var(--tick)}
+.oedit label{font-size:13px;font-weight:600}
+.oedit textarea{width:100%;min-height:64px;padding:10px 12px;background:var(--ink);color:var(--foam);border:1px solid var(--tick);border-radius:4px;font:inherit;font-size:16px;line-height:22px;resize:vertical}
+.oedit textarea::placeholder{color:var(--muted)}
+.oedit textarea:focus-visible{outline:2px solid var(--lavender);outline-offset:2px}
 .need{color:var(--error);font-weight:700}
 .empty{font-size:14px;color:var(--muted);padding:18px 0}
 
@@ -231,6 +240,7 @@ details.stock summary span{font-weight:500;color:var(--muted);font-size:13px}
   const SKEY='ll_admin_session';   // 사전예약 관리자와 같은 로그인을 쓴다
   let session=null, orders=[], items=[], timer=null, filter='pending', seen=null;
   let heldBy={}, editing=null, savedId=null, savedT=null;   // 재고·가격: 품목별 대기·확정 수량, 고치는 중인 품목, 방금 저장한 품목
+  let editingOrder=null, draft={address:'',memo:''};          // 주소·메모: 쓰고 있는 주문과 아직 저장 안 한 내용
   try{ session=JSON.parse(sessionStorage.getItem(SKEY)||'null'); }catch(e){}
   function save(s){ session=s; try{ s?sessionStorage.setItem(SKEY,JSON.stringify(s)):sessionStorage.removeItem(SKEY); }catch(e){} }
   function showErr(el,msg){ el.hidden=!msg; el.querySelector('span').textContent=msg||''; }
@@ -324,7 +334,8 @@ details.stock summary span{font-weight:500;color:var(--muted);font-size:13px}
     $('#stockSum').textContent=items.length+'종 · 남은 '+(leftR+leftD)+'개';
     renderStock();
 
-    // 접수 카드
+    // 접수 카드. 주소·메모 입력칸에 커서가 있으면 15초 새로고침이 다시 그리지 않는다(한글 조합이 끊기지 않게)
+    if(editingOrder!==null&&document.activeElement&&document.activeElement.closest('.oedit')) return;
     const term=$('#search').value.trim().replace(/-/g,'').toLowerCase();
     const list=(filter==='all'?orders:by(filter)).filter(o=>!term||(o.name+(o.phone||'')+(o.address||'')+(o.memo||'')+o.item.brand+o.item.name).toLowerCase().replace(/\s/g,'').includes(term.replace(/\s/g,'')));
     const box=$('#orders'); box.textContent='';
@@ -360,12 +371,19 @@ details.stock summary span{font-weight:500;color:var(--muted);font-size:13px}
       b.appendChild(tel);
     } else b.appendChild(el('span',{class:'need'},'휴대폰 번호 없음'));
     c.appendChild(b);
-    // 채팅으로 받은 주문: 배송 주소와 메모(유튜브 아이디 등)
-    if(o.address||o.memo){
-      const sh=el('div',{class:'ship'});
-      if(o.address){ sh.appendChild(el('span',{class:'k'},'배송 주소')); sh.appendChild(el('span',null,o.address)); }
+    // 배송 주소와 메모(유튜브 아이디, 입금자명 등). 카드에서 바로 남기고 고친다
+    if(editingOrder===o.id) c.appendChild(infoForm(o));
+    else if(o.address||o.memo){
+      const sh=el('div',{class:'ship'}), shh=el('div',{class:'ship-h'});
+      shh.appendChild(el('span',{class:'k'},o.address?'배송 주소':'메모'));
+      const eb=el('button',{type:'button',class:'btn btn-mini','aria-label':'#'+o.id+' 주소·메모 고치기'},'고치기');
+      eb.addEventListener('click',()=>openInfo(o)); shh.appendChild(eb); sh.appendChild(shh);
+      if(o.address) sh.appendChild(el('span',null,o.address));
       if(o.memo) sh.appendChild(el('span',{class:'memo'},o.memo));
       c.appendChild(sh);
+    } else {
+      const ab=el('button',{type:'button',class:'btn add-info'},'+ 주소·메모 남기기');
+      ab.addEventListener('click',()=>openInfo(o)); c.appendChild(ab);
     }
     const a=el('div',{class:'acts'});
     if(o.status==='pending'){ a.appendChild(act(o,'confirmed','확정','btn-ok')); a.appendChild(act(o,'cancelled','취소','btn-line',true)); }
@@ -373,6 +391,45 @@ details.stock summary span{font-weight:500;color:var(--muted);font-size:13px}
     if(o.status==='cancelled'){ a.appendChild(act(o,'pending','취소 되돌리기','btn-line')); }
     c.appendChild(a);
     return c;
+  }
+  function openInfo(o){
+    editingOrder=o.id; draft={address:o.address||'',memo:o.memo||''}; render();
+    const t=$('#oa-'+o.id); if(t) t.focus();
+  }
+  function closeInfo(){ editingOrder=null; render(); }
+  function infoForm(o){
+    const f=el('form',{class:'oedit',novalidate:''});
+    const area=(id,label,key,ph,rows)=>{
+      f.appendChild(el('label',{for:id},label));
+      const t=el('textarea',{id,rows:String(rows),maxlength:'300',placeholder:ph}); t.value=draft[key];
+      t.addEventListener('input',()=>{ draft[key]=t.value; }); f.appendChild(t);
+    };
+    area('oa-'+o.id,'배송 주소','address','도로명 주소와 동·호수',3);
+    area('om-'+o.id,'메모','memo','유튜브 아이디, 입금자명, 요청 사항',2);
+    const err=el('p',{class:'err',hidden:''}); err.innerHTML='<svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><span></span>'; f.appendChild(err);
+    const acts=el('div',{class:'acts'}), save=el('button',{type:'submit',class:'btn btn-ok'},'저장하기'), close=el('button',{type:'button',class:'btn btn-line'},'닫기');
+    acts.appendChild(save); acts.appendChild(close); f.appendChild(acts);
+    close.addEventListener('click',closeInfo);
+    f.addEventListener('keydown',e=>{ if(e.key==='Escape') closeInfo(); });
+    f.addEventListener('submit',async e=>{
+      e.preventDefault();
+      // 주소는 여러 줄로 붙여 넣어도 한 줄로 저장한다. 메모는 줄바꿈을 살린다
+      const address=draft.address.replace(/\s+/g,' ').trim(), memo=draft.memo.trim();
+      showErr(err,''); save.disabled=true; save.textContent='저장하는 중…';
+      try{
+        const r=await api('/rest/v1/rpc/admin_set_order_info',{method:'POST',body:JSON.stringify({p_id:o.id,p_address:address,p_memo:memo})});
+        if(!r||!r.ok){
+          save.disabled=false; save.textContent='저장하기';
+          showErr(err,{address:'주소는 300자까지 저장할 수 있어요.',memo:'메모는 300자까지 저장할 수 있어요.',order:'주문을 찾지 못했어요. 새로고침한 뒤 다시 시도해 주세요.'}[r&&r.code]||'저장하지 못했어요. 새로고침한 뒤 다시 시도해 주세요.');
+          return;
+        }
+        editingOrder=null; await load();
+      }catch(x){
+        if(x.message==='expired') return;
+        save.disabled=false; save.textContent='저장하기'; showErr(err,'저장하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.');
+      }
+    });
+    return f;
   }
   // 취소는 한 번 더 눌러야 실행된다(3초 안에)
   function act(o,to,label,cls,confirmFirst){
@@ -463,8 +520,8 @@ details.stock summary span{font-weight:500;color:var(--muted);font-size:13px}
     const first=$('#ep-'+id); first.focus(); first.select();
   }
   $('#itemSearch').addEventListener('input',()=>{ editing=null; renderStock(); });
-  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{ filter=t.dataset.f; render(); }));
-  $('#search').addEventListener('input',render);
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{ filter=t.dataset.f; editingOrder=null; render(); }));
+  $('#search').addEventListener('input',()=>{ editingOrder=null; render(); });
   $('#csvBtn').addEventListener('click',()=>{
     const head=['접수번호','접수 시각','상태','종류','브랜드','품명','수량','금액','이름','휴대폰','배송 주소','메모','접수 경로'];
     const esc=v=>{ const s=String(v??''); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };

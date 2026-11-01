@@ -52,7 +52,7 @@ update stock_items set model_year='2023년', fishing='배스 · 다운샷·와�
 update stock_items set model_year='2023년', fishing='배스 · 베이트 피네스(저크·탑워터)' where id=238;
 update stock_items set model_year='2023년', fishing='배스 · 텍사스·프리리그·러버지그' where id=239;
 update stock_items set model_year='2023년', fishing='배스 · 텍사스·프리리그·와이어베이트' where id=240;
-update stock_items set model_year='2023년', fishing='배스 · 빅베이트 2~5oz' where id=241;
+update stock_items set model_year='2023년', fishing='배스 · 빅베이트·스윔베이트' where id=241;
 update stock_items set model_year='2023년', fishing='배스 · 지그헤드·다운샷·네꼬·노싱커' where id=242;
 update stock_items set model_year='2023년', fishing='배스 · 라이트 채비 장타·미노우 저킹' where id=243;
 update stock_items set model_year='2023년', fishing='배스 · 워킹 올라운드(하드베이트·웜)' where id=244;

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>로드 방송 특가 실시간 가격표</title>
+<script>
+// 시청자에게 보내는 짧은 주소(/live/rod/). 가격표는 live/index.html 하나라 ?rod를 붙여 넘긴다(?host·?edit도 그대로)
+location.replace('../index.html?rod'+location.search.replace(/^\?/,'&'));
+</script>
+<noscript><meta http-equiv="refresh" content="0;url=../index.html?rod"></noscript>
+</head>
+<body style="background:#08070C"></body>
+</html>

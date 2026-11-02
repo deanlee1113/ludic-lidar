@@ -4,11 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>릴 방송 특가 실시간 가격표</title>
+<script>if(new URLSearchParams(location.search).has('rod')) document.title='로드 방송 특가 실시간 가격표';</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
 <style>
-/* 라이브 방송용 1920×1080 릴 가격표: 방송 화면(broadcast/index.html)과 같은 검정 + 퍼플 디자인
+/* 라이브 방송용 1920×1080 릴·로드 가격표: 방송 화면(broadcast/index.html)과 같은 검정 + 퍼플 디자인
+   주소에 ?rod = 로드 가격표(없으면 릴). 품목·저장 칸·DB 칸(board_state 'reels' / 'rods')이 따로다.
    두 가지로 연다. 주소에 ?host = 방송하는 사람이 고치는 화면 / 그냥 = 시청자용 보기 전용(고칠 수 없음, 휴대폰은 한 줄 카드)
    고치는 화면에서 관리자로 로그인하면 바뀐 내용이 DB(board_set)로 올라가고, 시청자 화면은 3초마다 DB(board_get)를 읽어 따라 바뀐다.
    카드마다 방송가 + 처음 가격(처음 웹사이트에 올린 값, 방송가와 다를 때만) + 인터넷 최저가(누르면 그 판매처로 이동)를 따로 보여 준다.
@@ -96,6 +98,8 @@ p,h1,h2{margin:0}
 .card .info{grid-row:2;grid-column:1;align-self:end;display:flex;flex-direction:column;gap:2px;min-width:0;line-height:1.25}
 .card .meta{font-size:18px;font-weight:600;color:var(--mist);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card .meta b{color:var(--lavender);font-weight:700}
+/* 로드 규격(에기 호수·루어 무게 등) */
+.card .meta.d{font-weight:500}
 .card .qty{font-weight:700;color:var(--success)}
 .card .qty.last{color:var(--flare)}
 .card .pr{grid-row:2;grid-column:2;align-self:end;display:flex;flex-direction:column;align-items:flex-end}
@@ -189,6 +193,7 @@ a.go:hover{color:var(--white)}
 .s-top{display:flex;align-items:center;gap:16px;font-family:var(--font-heading);font-size:34px;color:var(--lavender)}
 .s-top .tag{color:var(--white);background:var(--violet);padding:6px 20px;border-radius:999px;font-size:30px}
 .s-name{font-family:var(--font-heading);font-weight:400;font-size:100px;line-height:1.1;margin:20px 0 24px}
+.s-desc{font-size:40px;font-weight:600;color:var(--mist);margin:-8px 0 26px}
 .s-chips{display:flex;gap:14px}
 .s-chips .chip{font-size:32px}
 .s-buy{display:flex;align-items:center;gap:20px;margin-top:28px;cursor:text}
@@ -318,24 +323,20 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
   <div class="band"></div>
   <header class="head">
     <div>
-      <p class="kicker"><span class="dot"></span>LIVE PRICE · REEL</p>
-      <h1>릴 <em>방송 특가</em></h1>
+      <p class="kicker"><span class="dot"></span><span id="kicker"></span></p>
+      <h1 id="title"></h1>
     </div>
     <div class="call">
       <p class="call-lb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>전화 문의</p>
       <p class="call-no num">010-4963-6677</p>
     </div>
-    <label class="search" title="릴 검색 ( / 키)">
+    <label class="search" id="searchBox">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
-      <input id="q" type="text" placeholder="릴 검색  예: 세피아, 염월, 에깅" autocomplete="off" spellcheck="false" aria-label="릴 검색">
+      <input id="q" type="text" autocomplete="off" spellcheck="false">
       <span class="qcount" id="qcount"></span>
     </label>
     <div class="right">
-      <div class="chips">
-        <span class="chip on">한국 정품</span>
-        <span class="chip on">보증서 카드 포함</span>
-        <span class="chip">해외 직구 아님</span>
-      </div>
+      <div class="chips" id="chips"></div>
       <p class="note" id="note"></p>
     </div>
   </header>
@@ -369,8 +370,11 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
   <label class="notef">화면 위 작은 문구
     <input id="noteIn" type="text">
   </label>
+  <label class="notef">화면 위 배지(쉼표로 나눠 쓰기, 앞의 2개는 크게 보기에도 나와요)
+    <input id="chipsIn" type="text" maxlength="80">
+  </label>
   <label class="notef">품목 찾기
-    <input id="eq" type="text" placeholder="예: 세피아, 염월, 하이퍼포스" autocomplete="off">
+    <input id="eq" type="text" autocomplete="off">
   </label>
   <div class="rows" id="rows"></div>
   <div class="btns">
@@ -383,15 +387,16 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
 <script>
 (()=>{
   const $=s=>document.querySelector(s);
-  // ?host = 방송하는 사람이 고치는 화면. 없으면 시청자용 보기 전용
-  const HOST=new URLSearchParams(location.search).has('host');
+  // ?host = 방송하는 사람이 고치는 화면. 없으면 시청자용 보기 전용. ?rod = 로드 가격표
+  const PARAMS=new URLSearchParams(location.search);
+  const HOST=PARAMS.has('host'), ROD=PARAMS.has('rod');
   document.body.classList.toggle('host',HOST);
   const won=n=>Number(n).toLocaleString('ko-KR');
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const safeUrl=u=>/^https?:\/\//i.test(u||'')?u:'';
 
   // 품목(id는 판매 목록 DB의 id). 순서 = 화면 순서
-  const ITEMS=[
+  const REEL_ITEMS=[
     {id:106,cat:'에깅',brand:'시마노',name:'세피아 XR C3000SDH',year:'21년형'},
     {id:104,cat:'에깅',brand:'시마노',name:'세피아 SS C3000SDH',year:'19년형'},
     {id:105,cat:'에깅',brand:'시마노',name:'세피아 SS C3000SDHHG',year:'19년형'},
@@ -412,11 +417,11 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     {id:116,cat:'갯바위',brand:'시마노',name:'BB-X 하이퍼포스 C3000DXG',year:'22년형'},
   ];
   // 처음 웹사이트에 올린 가격과 수량(11월 1일). 웹사이트에 연결이 안 될 때도 이 값을 쓴다
-  const FIRST={101:[400000,1],102:[260000,3],103:[280000,2],104:[240000,3],105:[240000,1],106:[330000,3],107:[250000,1],108:[350000,1],
+  const REEL_FIRST={101:[400000,1],102:[260000,3],103:[280000,2],104:[240000,3],105:[240000,1],106:[330000,3],107:[250000,1],108:[350000,1],
     109:[480000,1],110:[480000,1],111:[270000,1],112:[270000,1],113:[100000,1],114:[100000,1],115:[160000,1],116:[480000,2],117:[50000,1],119:[360000,1]};
   // 인터넷 최저가(한국 정품 새 제품, 11월 1일 밤 판매처 페이지에서 확인). 웹사이트 DB(net_*)에 값이 있으면 그걸 먼저 쓴다.
   // 연식이 다른 후속 모델과는 비교하지 않는다. 같은 연식의 정품 매물이 없는 101·102·108·109·110은 비워 둠. 다나와 경유 할인가가 더 싸면 그 값을 썼다
-  const NET={
+  const REEL_NET={
     103:{price:294300,url:'https://www.11st.co.kr/products/9236910806'},
     104:{price:186010,url:'https://www.11st.co.kr/products/9478753464'},
     105:{price:256000,url:'https://prod.danawa.com/info/?pcode=9831414'},
@@ -433,7 +438,7 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
   };
   // 처음 값: 방송에서 정한 가격(웹사이트에 반영되면 같아져서 지워도 됨). 처음 가격·인터넷 최저가는 비워 두면 웹사이트·위 조사값을 쓴다
   // soldManual = 방송에서 직접 완판 처리한 품목(웹사이트 수량과 상관없이 완판으로 보임)
-  const START={
+  const REEL_START={
     price:{101:360000,116:440000,119:330000},
     orig:{},
     low:{},
@@ -442,9 +447,144 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     buyers:{},
     hidden:[],
     note:'인터넷 최저가: 한국 정품 새 제품 기준',
+    chips:'한국 정품, 보증서 카드 포함, 해외 직구 아님',
   };
 
-  const KEY='reels-board-v2';
+  // 로드: 루딕 라이다 → 시마노 에깅·팁런·이카메탈·오모리그·타이라바 → 배스(블랙홀·JS컴퍼니·기간이즘) → 쏘가리. desc = 규격(카드·크게 보기에 작게)
+  const ROD_ITEMS=[
+    {id:301,cat:'배스',brand:'루딕 라이다',name:'루딕 라이다 C-68MH',year:'',desc:'베이트 미디엄헤비 · 헤비 커버'},
+    {id:302,cat:'배스',brand:'루딕 라이다',name:'루딕 라이다 C-67M',year:'',desc:'베이트 미디엄 · 웜·하드베이트 올라운드'},
+    {id:303,cat:'배스',brand:'루딕 라이다',name:'루딕 라이다 S-65L',year:'',desc:'스피닝 라이트 · 피네스·바다 라이트게임'},
+    {id:208,cat:'에깅',brand:'시마노',name:'세피아 엑스튠 S82ML',year:'20년형',desc:'경쾌한 조작 · 에기 1.8~3.8호'},
+    {id:209,cat:'에깅',brand:'시마노',name:'세피아 엑스튠 S86ML',year:'20년형',desc:'올라운드 · 에기 1.8~3.8호'},
+    {id:210,cat:'에깅',brand:'시마노',name:'세피아 엑스튠 S86M',year:'20년형',desc:'대형·빠른 조류 · 에기 2~4호'},
+    {id:201,cat:'에깅',brand:'시마노',name:'세피아 BB S86M-S',year:'22년형',desc:'솔리드팁 · 에기 2~4호'},
+    {id:202,cat:'에깅',brand:'시마노',name:'세피아 BB S86M',year:'22년형',desc:'에기 2~4호'},
+    {id:211,cat:'팁런',brand:'시마노',name:'세피아 XR 팁 에깅 S68ML-S/R',year:'22년형',desc:'올라운드 · 수심 20~50m'},
+    {id:206,cat:'팁런',brand:'시마노',name:'세피아 SS 팁 에깅 S66ML-S',year:'19년형',desc:'섬세형 · 수심 40m까지'},
+    {id:207,cat:'팁런',brand:'시마노',name:'세피아 SS 팁 에깅 S66M-S',year:'19년형',desc:'파워형 · 수심 50m까지'},
+    {id:203,cat:'팁런',brand:'시마노',name:'세피아 BB 팁 에깅 S66ML-S',year:'18년형',desc:'섬세형 · 에기 60g까지'},
+    {id:204,cat:'팁런',brand:'시마노',name:'세피아 BB 팁 에깅 S66M-S',year:'18년형',desc:'파워형 · 에기 80g까지'},
+    {id:212,cat:'팁런',brand:'시마노',name:'세피아 BB 팁 에깅 S70M-S',year:'18년형',desc:'파워형 · 에기 80g까지'},
+    {id:216,cat:'이카메탈',brand:'시마노',name:'세피아 엑스튠 메탈 슷테 B66ML-S/F',year:'21년형',desc:'베이트 · 수심 0~60m'},
+    {id:214,cat:'이카메탈',brand:'시마노',name:'세피아 XR 메탈 슷테 B66M-S/F',year:'22년형',desc:'베이트 · 수심 10~80m'},
+    {id:205,cat:'이카메탈',brand:'시마노',name:'세피아 SS 메탈 슷테 B66M-S',year:'19년형',desc:'베이트 · 수심 10~60m'},
+    {id:217,cat:'이카메탈',brand:'시마노',name:'세피아 BB 메탈 슷테 S66ML-S',year:'18년형',desc:'스피닝 · 수심 10~60m'},
+    {id:213,cat:'오모리그',brand:'시마노',name:'세피아 XR 메탈 슷테 S70MH-S/R',year:'22년형',desc:'스피닝 · 봉돌 20~40호'},
+    {id:215,cat:'오모리그',brand:'시마노',name:'세피아 SS 메탈 슷테 S70MH-S/R',year:'22년형',desc:'스피닝 · 봉돌 20~40호'},
+    {id:218,cat:'타이라바',brand:'시마노',name:'염월 XR FS-B55ML RIGHT',year:'21년형',desc:'풀솔리드 · 헤드 30~100g'},
+    {id:219,cat:'타이라바',brand:'시마노',name:'염월 XR FS-B55ML LEFT',year:'21년형',desc:'풀솔리드 · 헤드 30~100g'},
+    {id:221,cat:'타이라바',brand:'시마노',name:'염월 XR FS-B66ML RIGHT',year:'21년형',desc:'풀솔리드 · 느린 조류·저활성'},
+    {id:220,cat:'타이라바',brand:'시마노',name:'염월 XR FS-B66ML LEFT',year:'21년형',desc:'풀솔리드 · 느린 조류·저활성'},
+    {id:222,cat:'타이라바',brand:'시마노',name:'염월 XR FS-B66M RIGHT',year:'21년형',desc:'풀솔리드 · 헤드 40~150g'},
+    {id:223,cat:'타이라바',brand:'시마노',name:'염월 XR N-B610ML-S RIGHT',year:'21년형',desc:'솔리드팁 · 헤드 30~100g'},
+    {id:242,cat:'배스',brand:'블랙홀',name:'실크로드2 에디션 S-682ML',year:'23년형',desc:'지그헤드·다운샷·네꼬·노싱커'},
+    {id:243,cat:'배스',brand:'블랙홀',name:'실크로드2 에디션 C-702ML',year:'23년형',desc:'라이트 채비 장타·미노우 저킹'},
+    {id:244,cat:'배스',brand:'블랙홀',name:'실크로드2 에디션 C-702M',year:'23년형',desc:'워킹 올라운드(하드베이트·웜)'},
+    {id:245,cat:'배스',brand:'블랙홀',name:'실크로드2 에디션 C-752MH',year:'23년형',desc:'텍사스 러버지그·프리리그'},
+    {id:246,cat:'배스',brand:'블랙홀',name:'실크로드2 에디션 C-7112H',year:'23년형',desc:'커버·알라바마·빅베이트'},
+    {id:247,cat:'배스',brand:'블랙홀',name:'실크로드2 에디션 C-722M (ONE & HALF)',year:'23년형',desc:'루어 1/4~1oz'},
+    {id:248,cat:'배스',brand:'블랙홀',name:'실크로드2 에디션 C-732XH (ONE & HALF)',year:'23년형',desc:'루어 3/8~4oz · PE 2~5호'},
+    {id:249,cat:'배스',brand:'블랙홀',name:'실크로드2 에디션 C-762XXH (ONE & HALF)',year:'23년형',desc:'루어 3/8~5oz · PE 3~6호'},
+    {id:250,cat:'배스',brand:'블랙홀',name:'실크로드2 에디션 C-762MH (ONE & HALF)',year:'23년형',desc:'텍사스 러버지그·프리리그'},
+    {id:237,cat:'배스',brand:'블랙홀',name:'다크호스2 배스 S-692M',year:'23년형',desc:'다운샷·와키·네드·네꼬리그'},
+    {id:238,cat:'배스',brand:'블랙홀',name:'다크호스2 배스 C-652ML',year:'23년형',desc:'베이트 피네스(저크·탑워터)'},
+    {id:239,cat:'배스',brand:'블랙홀',name:'다크호스2 배스 C-682MH',year:'23년형',desc:'텍사스·프리리그·러버지그'},
+    {id:240,cat:'배스',brand:'블랙홀',name:'다크호스2 배스 C-712MH',year:'23년형',desc:'텍사스·프리리그·와이어베이트'},
+    {id:241,cat:'배스',brand:'블랙홀',name:'다크호스2 배스 C-752XH',year:'23년형',desc:'빅베이트·스윔베이트'},
+    {id:235,cat:'배스',brand:'JSCOMPANY',name:'BIXOD B1 BC692MH',year:'21년형',desc:'프리리그·와이어베이트'},
+    {id:236,cat:'배스',brand:'JSCOMPANY',name:'BIXOD B1 BC712H',year:'21년형',desc:'1oz 지그·버징·스윔베이트'},
+    {id:233,cat:'배스',brand:'JSCOMPANY',name:'NIXX POP 2 S662ML',year:'',desc:'소형 하드베이트·지그'},
+    {id:234,cat:'배스',brand:'JSCOMPANY',name:'NIXX POP 2 BC652MR',year:'',desc:'저크·크랭크·스피너베이트'},
+    {id:227,cat:'배스',brand:'기간이즘',name:'THC-B S682L',year:'',desc:'다운샷·네꼬·지그헤드'},
+    {id:228,cat:'배스',brand:'기간이즘',name:'THC-B C682MH',year:'',desc:'중량 바닥채비 · 싱커 1/4~1oz'},
+    {id:232,cat:'배스',brand:'기간이즘',name:'TH-B C682M',year:'',desc:'루어 1/4~3/4oz'},
+    {id:224,cat:'배스',brand:'기간이즘',name:'3GO-B C682M',year:'',desc:'루어 최대 3/4oz'},
+    {id:225,cat:'배스',brand:'기간이즘',name:'3GO-B C672MH',year:'',desc:'루어 최대 1oz'},
+    {id:226,cat:'배스',brand:'기간이즘',name:'3GO-B C692H',year:'',desc:'루어 최대 1½oz'},
+    {id:229,cat:'쏘가리',brand:'기간이즘',name:'3GO-SR S602UL',year:'',desc:'루어 2~10g'},
+    {id:230,cat:'쏘가리',brand:'기간이즘',name:'3GO-SR S632L',year:'',desc:'루어 3~16g'},
+    {id:231,cat:'쏘가리',brand:'기간이즘',name:'3GO-SR S662L',year:'',desc:'루어 3~16g'},
+  ];
+  // 웹사이트 가격과 남은 수량(11월 3일). 웹사이트에 연결이 안 될 때 쓴다
+  const ROD_FIRST={301:[80000,127],302:[80000,5],303:[80000,5],208:[460000,1],209:[460000,1],210:[470000,1],201:[160000,2],202:[150000,1],211:[340000,0],
+    206:[240000,1],207:[250000,1],203:[140000,1],204:[150000,1],212:[150000,1],216:[470000,1],214:[340000,1],205:[250000,1],217:[140000,1],213:[350000,1],
+    215:[260000,1],218:[350000,1],219:[350000,1],221:[350000,1],220:[350000,1],222:[360000,1],223:[330000,1],242:[150000,1],243:[150000,1],244:[160000,0],
+    245:[160000,2],246:[160000,1],247:[160000,1],248:[170000,1],249:[170000,1],250:[160000,3],237:[90000,1],238:[90000,1],239:[90000,2],240:[90000,2],
+    241:[100000,1],235:[140000,2],236:[150000,1],233:[80000,0],234:[80000,0],227:[210000,1],228:[210000,1],232:[190000,1],224:[120000,0],225:[120000,1],
+    226:[120000,1],229:[120000,1],230:[120000,1],231:[120000,1]};
+  // 인터넷 최저가(국내 판매 새 제품, 같은 연식·같은 세대만, 11월 3일 판매처 상품 페이지에서 옵션까지 확인). 루딕 라이다는 우리 브랜드라 비교하지 않는다
+  // 누구나 받는 쿠폰가·다나와 경유가가 더 싸면 그 값을 썼다(비교를 부풀리지 않게). 네이버 스마트스토어는 열어 보지 못해 뺐다
+  // 같은 연식 국내 매물이 없는 201·217은 비워 둠. 220·221은 "정품" 표기가 있는 매물 중 최저(링크 없음)
+  const ROD_NET={
+    202:{price:175780,url:'https://www.11st.co.kr/products/6967042083'},
+    203:{price:178760,url:'https://www.11st.co.kr/products/7039799323'},
+    204:{price:169860,url:'https://www.11st.co.kr/products/5748959463'},
+    212:{price:199400,url:'https://item.gmarket.co.kr/Item?goodscode=3183810543'},
+    205:{price:200000,url:'https://item.gmarket.co.kr/Item?goodscode=3848882850'},
+    206:{price:281070,url:'https://item.gmarket.co.kr/Item?goodscode=2683582572'},
+    207:{price:278000,url:'https://item.gmarket.co.kr/Item?goodscode=1845883504'},
+    215:{price:306160,url:'https://www.11st.co.kr/products/8103142356'},
+    208:{price:498000,url:'https://www.coupang.com/vp/products/7823782712?itemId=21258424559&vendorItemId=88318817746'},
+    209:{price:500000,url:'https://www.coupang.com/vp/products/6924326262?itemId=16733357251&vendorItemId=93502479298'},
+    210:{price:423000,url:'https://item.gmarket.co.kr/Item?goodscode=4614754205'},
+    211:{price:423200,url:'https://www.11st.co.kr/products/9715890541'},
+    213:{price:344500,url:'https://www.coupang.com/vp/products/6583321007?itemId=19357049597&vendorItemId=92141511363'},
+    214:{price:339200,url:'https://www.coupang.com/vp/products/7612942798?itemId=20166647221&vendorItemId=92141511317'},
+    216:{price:467000,url:'https://www.coupang.com/vp/products/7881357381?itemId=24451804557&vendorItemId=93502125097'},
+    218:{price:280000,url:'https://www.coupang.com/vp/products/7663031167?itemId=20420488988&vendorItemId=95384952974'},
+    219:{price:280000,url:'https://www.coupang.com/vp/products/6165761694?itemId=12029685074&vendorItemId=95384952978'},
+    220:{price:324000},
+    221:{price:292950},
+    222:{price:366300,url:'https://itempage3.auction.co.kr/DetailView.aspx?itemno=D642712285'},
+    223:{price:250900,url:'https://www.11st.co.kr/products/9454490308'},
+    237:{price:107640,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557578077'},
+    238:{price:111780,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557578057'},
+    239:{price:111780,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557578015'},
+    240:{price:111780,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557578001'},
+    241:{price:115920,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557577966'},
+    242:{price:182160,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557577925'},
+    243:{price:190440,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557577907'},
+    244:{price:194580,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557577886'},
+    245:{price:211680,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000659303974'},
+    246:{price:202860,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557577846'},
+    247:{price:211500,url:'https://www.coupang.com/vp/products/9099468318?itemId=26748169054&vendorItemId=93719287867'},
+    248:{price:207000,url:'https://www.ssg.com/item/itemView.ssg?itemId=1000557577811'},
+    249:{price:229500,url:'https://www.coupang.com/vp/products/7246610054?itemId=18423933439&vendorItemId=85565770609'},
+    250:{price:216000,url:'https://www.coupang.com/vp/products/9099468318?itemId=26748169060&vendorItemId=93719287871'},
+    224:{price:150000,url:'https://www.coupang.com/vp/products/8655058299?itemId=25124920233'},
+    225:{price:158500,url:'https://www.coupang.com/vp/products/9347738711?itemId=27728022891'},
+    226:{price:158500,url:'https://www.coupang.com/vp/products/9347738711?itemId=27728022892'},
+    227:{price:290000,url:'https://www.coupang.com/vp/products/8242731821?itemId=23720110215'},
+    228:{price:300000,url:'https://www.coupang.com/vp/products/8242732414?itemId=23720111963'},
+    229:{price:160000,url:'https://www.coupang.com/vp/products/4899553210?itemId=6390945668'},
+    230:{price:163350,url:'https://www.coupang.com/vp/products/9347737494?itemId=27728017490'},
+    231:{price:170000,url:'https://www.coupang.com/vp/products/4899553210?itemId=6390945670'},
+    232:{price:265000,url:'https://www.coupang.com/vp/products/9525130162?itemId=28398999907'},
+    233:{price:99000,url:'https://www.coupang.com/vp/products/6378567433?itemId=13542103770&vendorItemId=91020867538'},
+    234:{price:88000,url:'https://www.coupang.com/vp/products/8705756725?itemId=25282055363&vendorItemId=92277617543'},
+    235:{price:186500,url:'https://www.coupang.com/vp/products/7198322984?itemId=18189485056&vendorItemId=4567114944'},
+    236:{price:189000,url:'https://www.coupang.com/vp/products/7198322975?itemId=18189484976&vendorItemId=92149027797'},
+  };
+  // 로드는 한국 정품·보증서 여부를 확인하지 않아서 배지에 넣지 않았다(입력 창 "화면 위 배지"에서 바꿀 수 있음)
+  const ROD_START={
+    price:{}, orig:{}, low:{}, soldManual:{}, left:{}, buyers:{}, hidden:[],
+    note:'인터넷 최저가: 국내 판매 새 제품 · 같은 연식 기준',
+    chips:'창고 털이 특가, 남은 수량 실시간',
+  };
+
+  // 릴/로드 중 이 화면에 쓸 것. word = 화면 글자, board = DB 칸, key = 이 브라우저 저장 칸
+  const K=ROD
+    ? {word:'로드',topic:'로드는',en:'ROD',kind:'rod',board:'rods',key:'rods-board-v2',eg:'세피아, 염월, 배스',items:ROD_ITEMS,first:ROD_FIRST,net:ROD_NET,start:ROD_START}
+    : {word:'릴',topic:'릴은',en:'REEL',kind:'reel',board:'reels',key:'reels-board-v2',eg:'세피아, 염월, 에깅',items:REEL_ITEMS,first:REEL_FIRST,net:REEL_NET,start:REEL_START};
+  const ITEMS=K.items, FIRST=K.first, NET=K.net, START=K.start;
+  $('#kicker').textContent='LIVE PRICE · '+K.en;
+  $('#title').innerHTML=K.word+' <em>방송 특가</em>';
+  $('#searchBox').title=K.word+' 검색 ( / 키)';
+  $('#q').placeholder=K.word+' 검색  예: '+K.eg; $('#q').setAttribute('aria-label',K.word+' 검색');
+  $('#eq').placeholder='예: '+K.eg;
+
+  const KEY=K.key;
   const fresh=()=>JSON.parse(JSON.stringify(Object.assign({v:2},START)));
   // 릴 가격으로 말이 되는 범위. 벗어나면 잘못 친 값으로 보고 받지 않는다(11월 2일 세피아가 800만 원으로 들어간 일)
   const MIN_PRICE=10000, MAX_PRICE=2000000;
@@ -454,6 +594,7 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     ['price','orig'].forEach(k=>{ const m=s[k]||{}; for(const id in m) if(!okPrice(m[id])) delete m[id]; });
     const l=s.left||{}; for(const id in l) if(!(l[id] && Number.isInteger(l[id].n) && l[id].n>=0 && l[id].n<=999 && Number.isInteger(l[id].at))) delete l[id];
     const b=s.buyers||{}; for(const id in b) if(typeof b[id]!=='string' || !b[id].trim()) delete b[id]; else b[id]=b[id].slice(0,60);
+    if('chips' in s){ if(typeof s.chips==='string') s.chips=s.chips.slice(0,80); else delete s.chips; }
     return s;
   }
   function load(){
@@ -475,8 +616,8 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
   // 잘못된 값을 지웠으면 바로 저장해서 다른 창(가격 입력 창)도 같은 값을 보게
   if(HOST && saved && JSON.stringify(state)!==saved) saveLocal();
 
-  // --- 시청자 화면과 나누는 상태(DB board_state 'reels') ---
-  const BOARD='reels', SHARED=['v','rev','price','orig','low','soldManual','left','buyers','hidden','note'];
+  // --- 시청자 화면과 나누는 상태(DB board_state 'reels' / 'rods') ---
+  const BOARD=K.board, SHARED=['v','rev','price','orig','low','soldManual','left','buyers','hidden','note','chips'];
   const sharedState=()=>Object.fromEntries(SHARED.filter(k=>k in state).map(k=>[k,state[k]]));
   const SKEY='reels-host-session';
   let session=null; try{ session=JSON.parse(localStorage.getItem(SKEY)||'null'); }catch(e){}
@@ -551,7 +692,7 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
       const r=await fetch(BASE+'/rest/v1/rpc/stock_list',{method:'POST',headers:{apikey:AKEY,Authorization:'Bearer '+AKEY,'Content-Type':'application/json'},body:'{}'});
       if(!r.ok) throw new Error('http_'+r.status);
       const a=await r.json();
-      a.forEach(x=>{ if(x.kind==='reel'){
+      a.forEach(x=>{ if(x.kind===K.kind){
         const before=site[x.id];
         if(before && x.left<before.left) bumped.add(x.id);
         site[x.id]={price:x.price,left:x.left,was:x.was_price,
@@ -567,9 +708,13 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
   const ALIAS={'세피아':'sephia','반포드':'vanford','트윈파워':'twinpower','소아레':'soare','넥사브':'nexave 넥서브','루비아스':'luvias',
     '오시아':'ocea','콘퀘스트':'conquest','염월':'엔게츠 engetsu','환풍':'겐푸 genpu','하이퍼포스':'hyperforce','BB-X':'비비엑스 bbx',
     '시마노':'shimano','다이와':'daiwa','에깅':'무늬오징어 갑오징어 eging','타이라바':'참돔 베이트','선상':'쥐치 한치 가자미 베이트',
-    '갯바위':'레버브레이크','아징':'전갱이 라이트게임','범용':'스피닝','우핸들':'오른손','좌핸들':'왼손'};
+    '갯바위':'레버브레이크','아징':'전갱이 라이트게임','범용':'스피닝','우핸들':'오른손','좌핸들':'왼손',
+    '엑스튠':'xtune','슷테':'스테 sutte 메탈스테','팁런':'tip eging 팁에깅','이카메탈':'한치 이까메탈 ikametal','오모리그':'한치 omorig',
+    '기간이즘':'giganism 지가니즘','JSCOMPANY':'js컴퍼니 제이에스','NIXX':'닉스팝 nixxpop','BIXOD':'빅소드','블랙홀':'blackhole',
+    '다크호스':'darkhorse','실크로드':'silkroad','루딕':'ludic','라이다':'lidar','배스':'bass','쏘가리':'mandarin',
+    'RIGHT':'우핸들 오른손','LEFT':'좌핸들 왼손','ONE & HALF':'원앤하프 1.5피스','솔리드':'solid'};
   const norm=s=>String(s).toLowerCase().replace(/[\s\-·_]/g,'');
-  const hay=i=>{ const t=[i.name,i.cat,i.brand,i.year].join(' '); return norm(t+' '+Object.keys(ALIAS).filter(k=>t.includes(k)).map(k=>ALIAS[k]).join(' ')); };
+  const hay=i=>{ const t=[i.name,i.cat,i.brand,i.year,i.desc||''].join(' '); return norm(t+' '+Object.keys(ALIAS).filter(k=>t.includes(k)).map(k=>ALIAS[k]).join(' ')); };
   const matches=(i,q)=>{ const w=String(q).trim().split(/\s+/).map(norm).filter(Boolean); if(!w.length) return true; const h=hay(i); return w.every(x=>h.includes(x)); };
   let query='';
 
@@ -613,6 +758,12 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     ? '<a class="go" href="'+esc(l.url)+'" target="_blank" rel="noopener">'+won(l.price)+unit+' ↗</a>'
     : '<span class="v">'+won(l.price)+unit+'</span>';
 
+  // 화면 위 배지: 쉼표로 나눠 입력. 앞의 2개는 진하게 + 크게 보기에도
+  const chipList=()=>String(state.chips ?? START.chips ?? '').split(',').map(s=>s.trim()).filter(Boolean).slice(0,4);
+  const chipsHtml=n=>chipList().slice(0,n).map((c,k)=>'<span class="chip'+(k<2?' on':'')+'">'+esc(c)+'</span>').join('');
+  // 카드 정보 줄: 용도 · 브랜드(시마노는 대부분이라 빼고, 이름에 들어 있으면 뺌) · 연식
+  const metaOf=i=>'<b>'+esc(i.cat)+'</b>'+[i.brand!=='시마노'&&!i.name.includes(i.brand)?i.brand:'',i.year].filter(Boolean).map(x=>' · '+esc(x)).join('');
+
   // 가격 숫자 칸: 누르면 그 자리에서 고친다
   const priceBox=(i,unit)=>'<span class="won num"><span class="v" data-edit="'+i.id+'">'+won(price(i))+'</span><em>'+unit+'</em></span>';
 
@@ -624,8 +775,9 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     const list=visible();
     $('#qcount').textContent=query.trim()?list.length+'개':'';
     if(!list.length && query.trim()){
-      $('#grid').innerHTML='<p class="empty">‘'+esc(query.trim())+'’ 릴은 지금 없어요<small>Esc를 누르면 전체 목록으로 돌아가요</small></p>';
+      $('#grid').innerHTML='<p class="empty">‘'+esc(query.trim())+'’ '+K.topic+' 지금 없어요<small>Esc를 누르면 전체 목록으로 돌아가요</small></p>';
       $('#note').textContent=state.note||'';
+      $('#chips').innerHTML=chipsHtml(4);
       return;
     }
     $('#grid').innerHTML=list.map(i=>{
@@ -634,7 +786,8 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
         (n<=0?'<span class="stamp">완판<small>SOLD OUT</small></span>':'')+
         '<span class="nm">'+esc(i.name)+'</span>'+
         // 시마노가 대부분이라 카드에는 다른 브랜드만 적는다(크게 보기에는 모두 적음)
-        '<span class="info"><span class="meta"><b>'+esc(i.cat)+'</b> · '+(i.brand!=='시마노'?esc(i.brand)+' · ':'')+esc(i.year)+'</span>'+
+        '<span class="info"><span class="meta">'+metaOf(i)+'</span>'+
+          (i.desc?'<span class="meta d">'+esc(i.desc)+'</span>':'')+
           (l?'<span class="line"><span class="lb">'+esc(l.label)+'</span>'+lowValue(l,'')+'<span class="save">-'+won(l.save)+'</span></span>':'')+
         '</span>'+
         '<span class="pr'+(o?' has-prev':'')+'">'+(o?'<s class="prev num">'+won(o)+'원</s>':'')+priceBox(i,'원')+'</span>'+
@@ -643,8 +796,17 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     }).join('');
     bumped.clear();
     $('#note').textContent=state.note||'';
+    $('#chips').innerHTML=chipsHtml(4);
     if(spotId!=null) showSpot(spotId,true);
     fit();
+  }
+  // 품목명이 카드 폭보다 길면(로드 이름 등) 한 줄에 다 보이게 글자를 줄인다(최소 20px). 휴대폰은 줄바꿈이라 그대로
+  function fitNames(){
+    const els=[...document.querySelectorAll('#grid .nm')];
+    els.forEach(el=>el.style.fontSize='');
+    if(document.body.classList.contains('mobile')) return;
+    const r=els.map(el=>el.clientWidth/el.scrollWidth);
+    els.forEach((el,k)=>{ if(r[k]<1) el.style.fontSize=Math.max(20,Math.floor(31*r[k]))+'px'; });
   }
 
   // 크게 보기
@@ -657,11 +819,12 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     const el=$('#spot');
     // quiet = 20초마다 다시 그릴 때: 열림·도장 애니메이션을 다시 돌리지 않는다(방금 완판된 품목만 도장이 찍힘)
     el.innerHTML='<div class="spot-card'+(n<=0?' sold':'')+(quiet&&!justSold.has(id)?' quiet':'')+'"'+(quiet?' style="animation:none"':'')+'>'+
-      '<p class="s-top"><span class="tag">'+esc(i.cat)+'</span>'+esc(i.brand)+' · '+esc(i.year)+'</p>'+
+      '<p class="s-top"><span class="tag">'+esc(i.cat)+'</span>'+[i.brand,i.year].filter(Boolean).map(esc).join(' · ')+'</p>'+
       '<span class="s-qty'+(n<=0?' sold':n===1?' last':'')+'" data-sqty="'+id+'"><span class="q">'+Math.max(n,0)+'</span>'+(n<=0?'개 · 완판':'개 남음')+'</span>'+
       (n<=0?'<span class="stamp">완판<small>SOLD OUT</small></span>':'')+
       '<h2 class="s-name">'+esc(i.name)+'</h2>'+
-      '<div class="s-chips"><span class="chip on">한국 정품</span><span class="chip on">보증서 카드 포함</span></div>'+
+      (i.desc?'<p class="s-desc">'+esc(i.desc)+'</p>':'')+
+      '<div class="s-chips">'+chipsHtml(2)+'</div>'+
       buyersBox(i,'s-buy')+
       '<div class="s-row"><div>'+
         (l?'<p class="line"><span class="lb">'+esc(l.label)+'</span>'+lowValue(l,'원')+'</p>':'')+
@@ -819,6 +982,7 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
   function field(k,cap,attrs){ return '<label class="f'+(k==='url'||k==='buy'?' '+k:'')+'"><span>'+cap+'</span><input data-k="'+k+'" '+attrs+'></label>'; }
   function buildEditor(){
     $('#noteIn').value=state.note||'';
+    $('#chipsIn').value=state.chips ?? START.chips ?? '';
     $('#rows').innerHTML=ITEMS.map(i=>{
       const l=state.low[i.id]||{}, b=baseNet(i), p=state.price[i.id], o=state.orig[i.id], lo=(state.left||{})[i.id], bu=(state.buyers||{})[i.id]||'';
       return '<div class="row'+(state.hidden.includes(i.id)?' off':'')+'" data-id="'+i.id+'">'+
@@ -886,6 +1050,7 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     if(k==='price'||k==='low'||k==='orig'){ const n=parseWon(e.target.value); e.target.value=n==null?'':won(n); }
   });
   $('#noteIn').addEventListener('input',e=>{ state.note=e.target.value; save(); render(); });
+  $('#chipsIn').addEventListener('input',e=>{ state.chips=e.target.value.slice(0,80); save(); render(); });
   function filterRows(){
     const v=$('#eq').value;
     document.querySelectorAll('#rows .row').forEach(r=>{ r.hidden=!matches(ITEMS.find(x=>x.id===+r.dataset.id),v); });
@@ -969,7 +1134,7 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     const w0=document.documentElement.clientWidth||innerWidth;
     const mobile=!HOST && w0<900;
     document.body.classList.toggle('mobile',mobile);
-    if(mobile){ document.body.style.minHeight=''; document.body.classList.remove('fitall'); return; }
+    if(mobile){ document.body.style.minHeight=''; document.body.classList.remove('fitall'); fitNames(); return; }
     const n=Math.max(1,$('#grid').children.length), rows=Math.ceil(n/3);
     const H=Math.max(1080,GRID_TOP+rows*CARD_H+(rows-1)*GAP+BOTTOM);
     const w=document.documentElement.clientWidth||innerWidth;
@@ -978,13 +1143,14 @@ body.mobile .boom .n{font-size:6vw;padding:6px 18px}
     document.body.classList.toggle('fitall',fitAll);
     document.body.style.minHeight=fitAll?'':Math.ceil(H*s)+'px';
     $('#ovStage').style.setProperty('--s2',Math.min(innerWidth/1920,innerHeight/1080));
+    fitNames();
   }
   addEventListener('resize',fit); fit();
   let idleT=null;
   const wake=()=>{ document.body.classList.remove('idle'); clearTimeout(idleT); idleT=setTimeout(()=>{ if($('#edit').hidden) document.body.classList.add('idle'); },2000); };
   addEventListener('mousemove',wake); wake();
 
-  if(editOnly){ document.body.classList.add('editonly'); document.title='릴 가격 입력'; openEdit(); }
+  if(editOnly){ document.body.classList.add('editonly'); document.title=K.word+' 가격 입력'; openEdit(); }
   render(); pull(); setInterval(pull,20000);
   pullBoard(); setInterval(pullBoard,HOST?15000:3000);
   if(HOST) setSync(session?'ok':'login');

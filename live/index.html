@@ -1,0 +1,994 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>릴 방송 특가 실시간 가격표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* 라이브 방송용 1920×1080 릴 가격표: 방송 화면(broadcast/index.html)과 같은 검정 + 퍼플 디자인
+   두 가지로 연다. 주소에 ?host = 방송하는 사람이 고치는 화면 / 그냥 = 시청자용 보기 전용(고칠 수 없음, 휴대폰은 한 줄 카드)
+   고치는 화면에서 관리자로 로그인하면 바뀐 내용이 DB(board_set)로 올라가고, 시청자 화면은 3초마다 DB(board_get)를 읽어 따라 바뀐다.
+   카드마다 방송가 + 처음 가격(처음 웹사이트에 올린 값, 방송가와 다를 때만) + 인터넷 최저가(누르면 그 판매처로 이동)를 따로 보여 준다.
+   남은 수량은 판매 목록 DB(stock_list)에서 20초마다 받아 온다. 방송가는 웹사이트 가격을 따르되, 여기서 입력한 가격이 있으면 그걸 쓴다.
+   입력한 값은 이 브라우저에 저장된다(localStorage). 편집 창을 다른 창에서 열어도(reels.html?edit) 방송 창이 2초 안에 따라 바뀐다.
+   인터넷 최저가는 방송가보다 높을 때만 화면에 띄운다(입력 창에는 항상 보임).
+   카드 아래칸에 남은 수량과 사 간 사람 이름을 방송 중에 바로 입력한다(누르고 치고 Enter). 화면은 가로 폭에 맞추고 세로로 길게 내려 본다.
+   조작(?host만): 카드 클릭 = 크게 보기 / 가격·수량·구매자 클릭 = 바로 입력 / ←→ = 크게 보기에서 앞뒤 품목 / Esc = 닫기·검색 지우기 / / = 검색
+         E = 가격 입력 창 / F = 전체화면 / Z = 한 화면에 다 보이기 ↔ 가로 맞춤 / X = 완판 / R = 원래 가격 / M = 연출 소리 */
+:root{
+  --ink:#08070C; --carbon:#14111E; --plum:#2B1460; --violet:#7C3AED; --lavender:#B79CFF;
+  --flare:#FC5C2F; --foam:#F5F3FA; --mist:#BDB4D8; --tick:#7D72A8; --white:#FFFFFF;
+  --field:#0E0C15; --line:#2A2440; --success:#45E0A0;
+  --glass:rgba(20,17,30,.62); --glass-edge:rgba(189,180,216,.20); --glass-hi:rgba(245,243,250,.08);
+  --glow-violet:rgba(124,58,237,.38); --glow-violet-soft:rgba(124,58,237,.20);
+  --scrim:rgba(8,7,12,.88);
+  --font-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --font-heading:"Black Han Sans","IBM Plex Sans KR","Apple SD Gothic Neo",sans-serif;
+  --font-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.9,.1,1);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ink)}
+/* 카드가 높아져 화면이 세로로 길다. 가로 폭에 맞춰 키우고 아래로 내려 본다(Z 키 = 한 화면에 다 보이게) */
+body{overflow-x:hidden;overflow-y:auto}
+body.fitall{overflow:hidden}
+body.idle{cursor:none}
+p,h1,h2{margin:0}
+[hidden]{display:none!important}
+.num{font-family:var(--font-display);font-variant-numeric:tabular-nums;line-height:1}
+
+.stage{position:absolute;left:50%;top:0;width:1920px;height:var(--h,1080px);overflow:hidden;
+  transform:translateX(-50%) scale(var(--s,1));transform-origin:50% 0;
+  color:var(--foam);font-family:var(--font-body);-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(50% 55% at 92% 6%,var(--glow-violet),transparent 70%),
+    radial-gradient(45% 55% at 4% 90%,var(--glow-violet-soft),transparent 72%),
+    var(--ink)}
+.band{position:absolute;left:0;right:0;top:12%;height:80%;background:var(--plum);opacity:.38;
+  clip-path:polygon(0 64%,100% 0,100% 36%,0 100%);pointer-events:none}
+
+/* 머리 */
+.head{position:absolute;left:64px;right:64px;top:30px;height:126px;display:flex;align-items:flex-end;justify-content:space-between}
+.kicker{font-family:var(--font-display);font-weight:900;font-size:30px;letter-spacing:.18em;color:var(--lavender);display:flex;align-items:center;gap:14px}
+.kicker .dot{width:14px;height:14px;border-radius:50%;background:var(--flare);box-shadow:0 0 18px var(--flare);animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{50%{opacity:.35}}
+.head h1{font-family:var(--font-heading);font-weight:400;font-size:76px;line-height:1.05;margin-top:6px;letter-spacing:-.01em}
+.head h1 em{font-style:normal;color:var(--lavender)}
+.head .right{display:flex;flex-direction:column;align-items:flex-end;gap:10px;margin-bottom:6px}
+.chips{display:flex;gap:12px}
+.chip{font-family:var(--font-heading);font-size:28px;padding:10px 22px;border-radius:999px;border:2px solid var(--glass-edge);background:var(--glass);white-space:nowrap}
+.chip.on{border-color:var(--violet);background:rgba(124,58,237,.28)}
+.note{font-size:19px;font-weight:500;color:var(--tick)}
+/* 전화번호: 머리 가운데에 아주 크게. 검색하는 동안만 숨기고 그 자리에 검색창을 펼친다 */
+.call{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px;margin:0 24px;transition:opacity .15s}
+.call-lb{display:flex;align-items:center;gap:8px;font-family:var(--font-heading);font-size:26px;line-height:1;color:var(--lavender)}
+.call-lb svg{width:26px;height:26px;fill:var(--flare)}
+.call-no{font-size:108px;font-weight:900;line-height:.9;color:var(--white);white-space:nowrap;text-shadow:0 0 28px var(--glow-violet)}
+.head.searching .call{opacity:0}
+/* 검색창: 품목명·용도·영문명(엔게츠, 겐푸 등)으로 카드를 걸러 낸다. 평소엔 돋보기 버튼, 누르거나 / 키를 누르면 펼침 */
+.search{flex:none;width:72px;margin:0 16px 8px 0;display:flex;align-items:center;justify-content:center;gap:14px;height:72px;padding:0;border-radius:999px;
+  background:var(--glass);border:2px solid var(--glass-edge);cursor:pointer;transition:border-color .2s}
+.search:focus-within{border-color:var(--violet);background:rgba(124,58,237,.18)}
+.head.searching .search{position:absolute;left:50%;bottom:8px;width:560px;margin:0;padding:0 24px;justify-content:flex-start;transform:translateX(-50%);cursor:text}
+.search svg{width:30px;height:30px;flex-shrink:0;stroke:var(--lavender);fill:none;stroke-width:2.4;stroke-linecap:round}
+.search input{all:unset;flex:0 0 0;width:0;min-width:0;opacity:0;font-family:var(--font-heading);font-size:30px;color:var(--white)}
+.head.searching .search input{flex:1;opacity:1}
+.search input::placeholder{color:var(--tick)}
+.search .qcount{font-family:var(--font-heading);font-size:24px;color:var(--lavender);white-space:nowrap}
+.empty{grid-column:1/-1;align-self:start;margin-top:120px;text-align:center;font-family:var(--font-heading);font-size:48px;color:var(--mist)}
+.empty small{display:block;margin-top:14px;font-family:var(--font-body);font-size:24px;color:var(--tick)}
+
+/* 카드 */
+.grid{position:absolute;left:64px;right:64px;top:172px;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:216px;gap:14px 16px}
+.card{position:relative;display:grid;grid-template-columns:1fr auto;grid-template-rows:36px 1fr 56px;column-gap:14px;row-gap:6px;
+  padding:12px 22px;border-radius:18px;background:var(--glass);border:2px solid var(--glass-edge);
+  box-shadow:inset 0 1px 0 var(--glass-hi);cursor:pointer;overflow:hidden;outline:none;transition:border-color .2s,transform .2s var(--ease)}
+.card:hover,.card:focus-visible{border-color:var(--lavender)}
+/* 남은 품목은 테두리를 두꺼운 연보라 + 퍼플 빛으로 눈에 띄게. 테두리가 4px 두꺼워진 만큼 padding을 줄여 안쪽 공간은 그대로 */
+.card:not(.sold){border:6px solid var(--lavender);padding:8px 18px;box-shadow:inset 0 1px 0 var(--glass-hi),0 0 18px var(--glow-violet)}
+.card:not(.sold):hover,.card:not(.sold):focus-visible{border-color:var(--white)}
+.card .nm{grid-row:1;grid-column:1/-1;font-family:var(--font-heading);font-size:31px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 처음 가격·인터넷 최저가가 둘 다 있어도 140px 카드에 들어가게 줄 간격을 좁힌다 */
+.card .info{grid-row:2;grid-column:1;align-self:end;display:flex;flex-direction:column;gap:2px;min-width:0;line-height:1.25}
+.card .meta{font-size:18px;font-weight:600;color:var(--mist);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .meta b{color:var(--lavender);font-weight:700}
+.card .qty{font-weight:700;color:var(--success)}
+.card .qty.last{color:var(--flare)}
+.card .pr{grid-row:2;grid-column:2;align-self:end;display:flex;flex-direction:column;align-items:flex-end}
+/* 이전 가격: 지금 가격 위에 작게 줄 그어 */
+/* 이전 가격은 지금 가격과 비교가 되게 크게. 카드 높이는 그대로라 이전 가격이 있으면 지금 가격을 조금 줄인다 */
+.prev{font-size:32px;font-weight:800;line-height:.9;color:var(--foam);opacity:.85;text-decoration:line-through;text-decoration-thickness:3px;text-decoration-color:var(--flare)}
+/* 가격 숫자를 누르면 그 자리에서 바로 고친다(Enter 저장 · Esc 취소) */
+.won .v{display:inline-block;cursor:text;border-radius:8px}
+/* 카드 아래칸: 남은 수량(누르면 고침) + 사 간 사람(누르면 이름 입력, 크게) */
+.foot{grid-row:3;grid-column:1/-1;display:flex;align-items:center;gap:14px;min-width:0;padding-top:8px;border-top:2px dashed rgba(189,180,216,.22)}
+.qbox{flex:none;display:inline-flex;align-items:baseline;gap:4px;padding:4px 14px;border-radius:12px;background:rgba(69,224,160,.14);color:var(--success);
+  font-family:var(--font-heading);font-size:26px;line-height:1.2;cursor:text}
+.qbox.last{background:rgba(252,92,47,.16);color:var(--flare)}
+.qbox.zero{background:rgba(252,92,47,.9);color:var(--white)}
+.qbox .q{font-family:var(--font-display);font-weight:900;font-size:34px;line-height:1;min-width:.6em;text-align:center;border-radius:6px}
+.buyers{flex:1;min-width:0;display:flex;align-items:center;gap:12px;cursor:text}
+.buyers .by-lb{flex:none;font-family:var(--font-heading);font-size:22px;color:var(--ink);background:var(--lavender);padding:3px 10px;border-radius:8px}
+.buyers .by{min-width:0;font-family:var(--font-heading);font-size:34px;line-height:1.15;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:8px}
+.buyers .by.long{font-size:28px}
+.buyers .by.longer{font-size:23px}
+/* 이름이 없을 때 자리 표시는 마우스를 움직일 때만(방송 중 커서가 숨으면 같이 숨음) */
+.buyers.empty .by{color:var(--tick);font-size:24px;font-family:var(--font-body);font-weight:600}
+.buyers.empty .by-lb{opacity:.5}
+body.idle .buyers.empty{opacity:0}
+.qbox .q[contenteditable="true"],.buyers .by[contenteditable="true"],.s-qty .q[contenteditable="true"],.s-buy .by[contenteditable="true"]{
+  outline:3px dashed var(--lavender);outline-offset:2px;background:rgba(124,58,237,.3);caret-color:var(--flare);text-overflow:clip;color:var(--white)}
+.won .v[contenteditable="true"]{outline:3px dashed var(--lavender);outline-offset:1px;background:rgba(124,58,237,.3);caret-color:var(--flare)}
+.won .v.reject{animation:reject .6s ease-in-out}
+@keyframes reject{0%,100%{transform:none}20%,60%{transform:translateX(-8px);color:var(--flare)}40%,80%{transform:translateX(8px);color:var(--flare)}}
+.line{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:600;color:var(--mist);white-space:nowrap;min-width:0}
+/* 설명이 길면 설명만 줄이고 숫자는 다 보이게 */
+.line .lb{overflow:hidden;text-overflow:ellipsis;min-width:0;color:var(--tick)}
+.line s,.line a,.line .v,.save{flex-shrink:0}
+.line s{text-decoration-thickness:2px;text-decoration-color:var(--flare)}
+.line .v{color:var(--foam)}
+a.go{color:var(--lavender);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;cursor:pointer}
+a.go:hover{color:var(--white)}
+.save{display:inline-block;padding:0 8px;border-radius:7px;line-height:1.25;background:var(--flare);color:var(--white);font-weight:700}
+.card .won{font-size:58px;font-weight:900;color:var(--white)}
+.card .won em,.spot .won em{font-family:var(--font-heading);font-style:normal;font-size:.42em;margin-left:4px;color:var(--mist)}
+/* 완판은 자리는 그대로 두고 카드만 조금 줄인 뒤, 주황 테두리와 큰 "완판" 도장으로 눈에 확 띄게 */
+.card.sold{transform:scale(.94);border:6px solid var(--flare);padding:8px 18px;box-shadow:0 0 26px rgba(252,92,47,.5)}
+.card.sold>:not(.stamp):not(.foot){opacity:.32}
+.card.sold .won{text-decoration:line-through;text-decoration-thickness:4px;text-decoration-color:var(--flare)}
+.stamp{position:absolute;left:50%;top:50%;z-index:2;display:flex;align-items:baseline;gap:12px;white-space:nowrap;
+  transform:translate(-50%,-50%) rotate(-8deg);font-family:var(--font-heading);font-size:58px;line-height:1;color:var(--white);
+  background:var(--flare);padding:10px 30px;border:4px solid var(--white);border-radius:14px;box-shadow:0 0 0 5px var(--flare),0 10px 30px rgba(0,0,0,.55)}
+.stamp small{font-family:var(--font-display);font-weight:900;font-size:26px;letter-spacing:.14em}
+/* 방금 완판된 카드만 도장이 쾅 찍히고 몇 번 깜빡인다(20초마다 다시 그려도 반복되지 않게) */
+.card.justsold .stamp{animation:stampIn .6s cubic-bezier(.2,1.6,.4,1) both,stampBlink .5s 1s 5 alternate}
+@keyframes stampIn{from{transform:translate(-50%,-50%) rotate(-8deg) scale(2.8);opacity:0}}
+@keyframes stampBlink{to{background:var(--white);color:var(--flare)}}
+
+/* 완판 연출: 화면 전체에 "완판!"이 쾅 + 빛줄기·색종이·흔들림 3.6초 */
+.boom{position:absolute;inset:0;z-index:8;display:grid;place-items:center;overflow:hidden;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,rgba(252,92,47,.6),rgba(8,7,12,.93) 62%);animation:boomBg 3.6s ease-out forwards}
+.boom .rays{position:absolute;left:50%;top:50%;width:2800px;height:2800px;margin:-1400px 0 0 -1400px;
+  background:repeating-conic-gradient(rgba(252,92,47,.25) 0 8deg,transparent 8deg 20deg);animation:spin 7s linear infinite}
+.boom .in{position:relative;text-align:center;animation:slam .7s cubic-bezier(.2,1.5,.4,1) both}
+.boom .k{font-family:var(--font-display);font-weight:900;font-size:64px;letter-spacing:.32em;color:var(--white)}
+.boom .t{font-family:var(--font-heading);font-size:320px;line-height:1;color:var(--white);transform:rotate(-6deg);
+  text-shadow:10px 10px 0 var(--flare),0 0 70px rgba(252,92,47,.9)}
+.boom .n{display:inline-block;margin-top:30px;font-family:var(--font-heading);font-size:64px;color:var(--white);background:var(--flare);padding:10px 36px;border-radius:16px}
+.boom i{position:absolute;top:-40px;width:18px;height:34px;border-radius:3px;animation:fall linear forwards}
+@keyframes slam{0%{transform:scale(3.2);opacity:0}60%{transform:scale(.92);opacity:1}100%{transform:scale(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes boomBg{0%{opacity:0}5%{opacity:1}85%{opacity:1}100%{opacity:0}}
+@keyframes fall{to{transform:translate(var(--dx),1240px) rotate(var(--r))}}
+.stage.shake{animation:shake .55s ease-in-out}
+@keyframes shake{
+  0%,100%{transform:translateX(-50%) scale(var(--s,1))}
+  20%{transform:translate(calc(-50% - 16px),8px) scale(var(--s,1))}
+  40%{transform:translate(calc(-50% + 14px),-10px) scale(var(--s,1))}
+  60%{transform:translate(calc(-50% - 10px),6px) scale(var(--s,1))}
+  80%{transform:translate(calc(-50% + 6px),-4px) scale(var(--s,1))}}
+.card.bump{animation:bump .9s var(--ease)}
+@keyframes bump{30%{transform:scale(1.04);border-color:var(--flare)}}
+
+/* 크게 보기·완판 연출 틀: 스크롤해도 늘 지금 보이는 화면에 1920×1080으로 뜬다 */
+.ov{position:fixed;inset:0;z-index:15;pointer-events:none}
+.ov-stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform:translate(-50%,-50%) scale(var(--s2,1));
+  color:var(--foam);font-family:var(--font-body);-webkit-font-smoothing:antialiased}
+.ov .spot{pointer-events:auto}
+/* 크게 보기 */
+.spot{position:absolute;inset:0;background:var(--scrim);display:grid;place-items:center;z-index:5;animation:fade .25s ease-out}
+@keyframes fade{from{opacity:0}}
+.spot-card{width:1640px;padding:60px 80px;border-radius:36px;background:
+  radial-gradient(60% 80% at 100% 0%,var(--glow-violet),transparent 70%),var(--carbon);
+  border:3px solid var(--violet);box-shadow:0 30px 120px rgba(0,0,0,.6);position:relative;animation:pop .45s var(--ease)}
+@keyframes pop{from{transform:scale(.94);opacity:0}}
+.s-top{display:flex;align-items:center;gap:16px;font-family:var(--font-heading);font-size:34px;color:var(--lavender)}
+.s-top .tag{color:var(--white);background:var(--violet);padding:6px 20px;border-radius:999px;font-size:30px}
+.s-name{font-family:var(--font-heading);font-weight:400;font-size:100px;line-height:1.1;margin:20px 0 24px}
+.s-chips{display:flex;gap:14px}
+.s-chips .chip{font-size:32px}
+.s-buy{display:flex;align-items:center;gap:20px;margin-top:28px;cursor:text}
+.s-buy .by-lb{flex:none;font-family:var(--font-heading);font-size:36px;color:var(--ink);background:var(--lavender);padding:6px 18px;border-radius:12px}
+.s-buy .by{min-width:0;font-family:var(--font-heading);font-size:64px;line-height:1.1;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:10px}
+.s-buy.empty .by{color:var(--tick);font-size:36px;font-family:var(--font-body);font-weight:600}
+body.idle .s-buy.empty{opacity:0}
+.ov .spot-card.sold>.s-buy{opacity:1}
+.s-row{display:flex;align-items:flex-end;justify-content:space-between;margin-top:40px;gap:40px}
+.s-row>div{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.spot .line{font-size:38px;gap:16px}
+.spot .line s{text-decoration-thickness:4px}
+.spot a.go{text-decoration-thickness:3px;text-underline-offset:6px}
+.s-save{display:inline-block;margin-top:6px;font-family:var(--font-heading);font-size:44px;color:var(--white);background:var(--flare);padding:8px 24px;border-radius:14px}
+.spot .won{font-size:210px;font-weight:900;color:var(--white);letter-spacing:-.01em;white-space:nowrap}
+.s-price{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end}
+.s-price .prev{font-size:96px;text-decoration-thickness:7px;margin-bottom:6px}
+.spot-card.sold .won{text-decoration:line-through;text-decoration-thickness:10px;text-decoration-color:var(--flare)}
+.spot-card.sold>:not(.stamp){opacity:.4}
+.card.sold .won em,.spot-card.sold .won em{text-decoration:none}
+.spot-card .stamp{font-size:150px;padding:20px 64px;border-width:8px;border-radius:28px;gap:24px;box-shadow:0 0 0 10px var(--flare),0 20px 60px rgba(0,0,0,.6);
+  animation:stampIn .6s cubic-bezier(.2,1.6,.4,1) both}
+.spot-card .stamp small{font-size:56px}
+.spot-card.quiet .stamp{animation:none}
+.s-qty{position:absolute;right:80px;top:60px;font-family:var(--font-heading);font-size:40px;color:var(--success);cursor:text}
+.s-qty.last,.s-qty.sold{color:var(--flare)}
+.s-nav{position:absolute;left:0;right:0;bottom:40px;text-align:center;font-size:22px;color:var(--tick)}
+
+/* 가격 입력 창: 방송 화면 밖(확대·축소 안 됨) */
+.edit{position:fixed;top:0;right:0;bottom:0;width:min(900px,100vw);z-index:20;background:var(--field);color:var(--foam);
+  font-family:var(--font-body);border-left:2px solid var(--line);overflow:auto;padding:28px 28px 60px;box-shadow:-20px 0 60px rgba(0,0,0,.5)}
+body.editonly .stage,body.editonly .ov{display:none}
+body.editonly{overflow:auto}
+body.editonly .edit{position:static;width:auto;max-width:960px;margin:0 auto;border:0;box-shadow:none}
+.edit h2{font-family:var(--font-heading);font-weight:400;font-size:30px}
+.edit .hint{margin:8px 0 16px;color:var(--mist);font-size:15px;line-height:1.6}
+.edit .status{font-size:14px;color:var(--tick);margin-bottom:14px}
+.edit .status.bad{color:var(--flare)}
+.edit .pricier{font-size:14px;line-height:1.6;font-weight:600;color:var(--flare);margin:-6px 0 14px}
+.edit label.notef{display:block;font-size:14px;color:var(--mist);margin-bottom:16px}
+.edit input{font:inherit;font-size:15px;color:var(--foam);background:var(--carbon);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;width:100%;min-width:0}
+.edit input:focus{outline:none;border-color:var(--violet)}
+.edit input.over{border-color:var(--violet);background:rgba(124,58,237,.16)}
+.rows{display:flex;flex-direction:column;gap:10px}
+.row{display:grid;grid-template-columns:118px 118px 128px 150px 1fr 64px;gap:8px 8px;align-items:end;padding:12px;border-radius:12px;background:var(--carbon);border:1px solid var(--line)}
+.row.off{opacity:.45}
+.row .who{grid-column:1/6;font-size:15px;font-weight:700;line-height:1.35}
+.row .who small{font-weight:500;color:var(--tick);font-size:13px;margin-left:6px}
+.row .warn{display:block;color:var(--flare);font-size:12px;font-weight:600}
+.row input[type=checkbox]{width:22px;height:22px;accent-color:var(--violet);margin:0}
+.f{display:block;min-width:0}
+.f>span{display:block;font-size:12px;color:var(--tick);font-weight:600;margin-bottom:4px}
+.f.url{grid-column:5/7}
+.f.buy{grid-column:2/7}
+.f.chk{grid-column:6;grid-row:1;display:flex;flex-direction:column;align-items:flex-end;gap:6px;justify-self:end;align-self:start}
+.f.chk label{display:flex;align-items:center;gap:6px}
+.f.chk label>span{font-size:12px;color:var(--tick);font-weight:600}
+.btns{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btns button{font:inherit;font-weight:700;font-size:15px;padding:11px 18px;border-radius:10px;border:1.5px solid var(--line);background:var(--carbon);color:var(--foam);cursor:pointer}
+.btns button.primary{background:var(--violet);border-color:var(--violet)}
+@media (max-width:760px){
+  .row{grid-template-columns:1fr 1fr}
+  .row .who{grid-column:1/-1}
+  .f.chk{grid-column:auto;grid-row:auto;flex-direction:row;gap:14px;justify-self:start;align-self:end;padding-bottom:8px}
+  .f.url,.f.buy{grid-column:1/-1}
+}
+
+/* 시청자 화면(보기 전용): 입력 커서·빈 칸 표시 없음 */
+body:not(.host) .won .v,body:not(.host) .qbox,body:not(.host) .buyers,body:not(.host) .s-qty,body:not(.host) .s-buy{cursor:inherit}
+/* 고치는 화면 왼쪽 아래: 시청자 화면에 반영됐는지(마우스를 움직일 때만 보임) */
+.sync{position:fixed;left:16px;bottom:16px;z-index:18;font:600 14px/1.4 var(--font-body);color:var(--foam);background:rgba(20,17,30,.92);
+  border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;transition:opacity .2s}
+.sync.ok{border-color:var(--success)} .sync.bad{border-color:var(--flare);color:var(--flare)}
+body.idle .sync{opacity:0}
+.edit .login{display:grid;gap:8px;padding:14px;border:1.5px solid var(--line);border-radius:12px;background:var(--carbon);margin:0 0 16px}
+.edit .login b{font-size:15px}
+.edit .login p{font-size:13px;color:var(--mist);line-height:1.5}
+.edit .login .lrow{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}
+.edit .login button{font:inherit;font-weight:700;font-size:14px;padding:8px 14px;border-radius:10px;border:0;background:var(--violet);color:var(--white);cursor:pointer}
+.edit .login .err{color:var(--flare);font-weight:600}
+.edit .login.on{border-color:var(--success)}
+
+/* 휴대폰 시청자: 1920 화면을 줄이지 않고 한 줄 카드로 */
+body.mobile .stage{position:relative;left:auto;top:auto;width:auto;height:auto;transform:none;overflow:visible;padding:16px 16px 40px;min-height:100vh}
+body.mobile .band{display:none}
+body.mobile .head{position:static;height:auto;flex-direction:column;align-items:stretch;gap:12px}
+body.mobile .kicker{font-size:15px;gap:8px}
+body.mobile .kicker .dot{width:10px;height:10px}
+body.mobile .head h1{font-size:34px;margin-top:4px}
+body.mobile .call{margin:0;align-items:flex-start}
+body.mobile .call-lb{font-size:15px}
+body.mobile .call-lb svg{width:16px;height:16px}
+body.mobile .call-no{font-size:46px}
+body.mobile .search{display:none}
+body.mobile .head .right{align-items:flex-start;margin:0;gap:8px}
+body.mobile .chips{flex-wrap:wrap;gap:8px}
+body.mobile .chip{font-size:15px;padding:6px 12px}
+body.mobile .note{font-size:13px}
+body.mobile .grid{position:static;grid-template-columns:1fr;grid-auto-rows:auto;gap:12px;margin-top:16px}
+body.mobile .card,body.mobile .card:not(.sold),body.mobile .card.sold{grid-template-rows:auto auto auto;padding:12px 14px;border-width:3px;transform:none;cursor:default}
+body.mobile .card .nm{font-size:22px;white-space:normal}
+/* 휴대폰: 품목명 → 가격 → 정보(인터넷 최저가) → 수량·구매자 순서로 한 줄씩 */
+body.mobile .card,body.mobile .card:not(.sold),body.mobile .card.sold{grid-template-columns:1fr}
+body.mobile .card .pr{grid-row:2;grid-column:1;align-items:flex-start}
+body.mobile .card .info{grid-row:3;grid-column:1}
+body.mobile .foot{grid-row:4}
+body.mobile .card .meta,body.mobile .line{font-size:14px;gap:6px}
+body.mobile .card .won{font-size:40px}
+body.mobile .prev{font-size:22px;text-decoration-thickness:2px}
+body.mobile .foot{gap:10px}
+body.mobile .qbox{font-size:17px;padding:3px 10px}
+body.mobile .qbox .q{font-size:24px}
+body.mobile .buyers .by-lb{font-size:14px;padding:2px 8px}
+body.mobile .buyers .by{font-size:22px;white-space:normal}
+body.mobile .buyers .by.long{font-size:20px}
+body.mobile .buyers .by.longer{font-size:17px}
+body.mobile .stamp{font-size:34px;padding:6px 18px;border-width:3px;box-shadow:0 0 0 3px var(--flare),0 6px 18px rgba(0,0,0,.5);gap:8px}
+body.mobile .stamp small{font-size:15px}
+body.mobile .ov-stage{left:0;top:0;width:100%;height:100%;transform:none}
+body.mobile .boom .k{font-size:6vw}
+body.mobile .boom .t{font-size:30vw;text-shadow:4px 4px 0 var(--flare),0 0 40px rgba(252,92,47,.9)}
+body.mobile .boom .n{font-size:6vw;padding:6px 18px}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="band"></div>
+  <header class="head">
+    <div>
+      <p class="kicker"><span class="dot"></span>LIVE PRICE · REEL</p>
+      <h1>릴 <em>방송 특가</em></h1>
+    </div>
+    <div class="call">
+      <p class="call-lb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>전화 문의</p>
+      <p class="call-no num">010-4963-6677</p>
+    </div>
+    <label class="search" title="릴 검색 ( / 키)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
+      <input id="q" type="text" placeholder="릴 검색  예: 세피아, 염월, 에깅" autocomplete="off" spellcheck="false" aria-label="릴 검색">
+      <span class="qcount" id="qcount"></span>
+    </label>
+    <div class="right">
+      <div class="chips">
+        <span class="chip on">한국 정품</span>
+        <span class="chip on">보증서 카드 포함</span>
+        <span class="chip">해외 직구 아님</span>
+      </div>
+      <p class="note" id="note"></p>
+    </div>
+  </header>
+  <main class="grid" id="grid"></main>
+</div>
+<div class="sync" id="sync" hidden></div>
+<div class="ov"><div class="ov-stage" id="ovStage">
+  <div class="spot" id="spot" hidden></div>
+  <div class="boom" id="boom" hidden></div>
+</div></div>
+
+<aside class="edit" id="edit" hidden>
+  <h2>가격 입력</h2>
+  <p class="hint">
+    가격은 <b>36</b>처럼 만원 단위로 써도 돼요(= 360,000원).<br>
+    <b>방송가</b>를 비우면 웹사이트 가격을 그대로 써요. <b>이전 가격</b>은 방송가와 다를 때만 가격 위에 작게 줄 그어 나와요.<br>
+    방송 화면에서 <b>가격 숫자를 바로 눌러</b> 고칠 수도 있어요(Enter 저장 · Esc 취소). 가격을 내리면 바로 전 가격이 이전 가격으로 남아요.<br>
+    <b>완판</b>에 체크하면(또는 크게 보기에서 X) 화면 전체에 완판 연출이 나와요. 웹사이트 수량은 바뀌지 않아요. 연출 소리는 M 키로 끄고 켜요.<br>
+    <b>남은 수량</b>·<b>구매자</b>는 방송 화면 카드 아래칸을 눌러 바로 입력해도 돼요. 남은 수량을 고친 뒤 웹사이트에서 더 팔리면 그만큼 자동으로 줄어요. 0이면 완판 연출이 나와요.<br>
+    <b>인터넷 최저가</b>는 방송가보다 높을 때만 화면에 나오고, <b>링크</b>를 넣으면 화면에서 그 가격을 눌러 판매처로 들어갈 수 있어요.<br>
+    방송 창과 따로 보려면 이 주소 끝에 <b>?edit</b>를 붙여 새 창으로 여세요. 입력하면 방송 창이 바로 따라 바뀌어요.
+  </p>
+  <div class="login" id="login">
+    <b>시청자 화면 연결</b>
+    <p id="loginMsg">관리자로 로그인하면 여기서 바꾼 내용이 시청자 링크에도 바로 반영돼요. (관리 화면과 같은 아이디·비밀번호)</p>
+    <form class="lrow" id="loginForm"><input id="uid" type="text" placeholder="아이디" autocomplete="username"><input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password"><button type="submit" id="loginBtn">로그인</button></form>
+    <p class="err" id="loginErr" hidden></p>
+  </div>
+  <p class="status" id="status">웹사이트 수량 불러오는 중…</p>
+  <p class="pricier" id="pricier"></p>
+  <label class="notef">화면 위 작은 문구
+    <input id="noteIn" type="text">
+  </label>
+  <label class="notef">품목 찾기
+    <input id="eq" type="text" placeholder="예: 세피아, 염월, 하이퍼포스" autocomplete="off">
+  </label>
+  <div class="rows" id="rows"></div>
+  <div class="btns">
+    <button type="button" class="primary" id="closeEdit">닫기</button>
+    <button type="button" id="resetAll">처음 값으로 되돌리기</button>
+  </div>
+</aside>
+
+<script src="../config.js"></script>
+<script>
+(()=>{
+  const $=s=>document.querySelector(s);
+  // ?host = 방송하는 사람이 고치는 화면. 없으면 시청자용 보기 전용
+  const HOST=new URLSearchParams(location.search).has('host');
+  document.body.classList.toggle('host',HOST);
+  const won=n=>Number(n).toLocaleString('ko-KR');
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const safeUrl=u=>/^https?:\/\//i.test(u||'')?u:'';
+
+  // 품목(id는 판매 목록 DB의 id). 순서 = 화면 순서
+  const ITEMS=[
+    {id:106,cat:'에깅',brand:'시마노',name:'세피아 XR C3000SDH',year:'21년형'},
+    {id:104,cat:'에깅',brand:'시마노',name:'세피아 SS C3000SDH',year:'19년형'},
+    {id:105,cat:'에깅',brand:'시마노',name:'세피아 SS C3000SDHHG',year:'19년형'},
+    {id:103,cat:'에깅',brand:'시마노',name:'반포드 C3000SDH',year:'20년형'},
+    {id:101,cat:'범용',brand:'시마노',name:'트윈파워 C2000S',year:'20년형'},
+    {id:102,cat:'범용',brand:'시마노',name:'반포드 C2000S',year:'20년형'},
+    {id:115,cat:'아징',brand:'시마노',name:'소아레 BB C2000SSPG',year:'22년형'},
+    {id:117,cat:'범용',brand:'시마노',name:'넥사브 C2000S',year:'21년형'},
+    {id:119,cat:'범용',brand:'다이와',name:'20 루비아스 LT3000-C',year:'20년형'},
+    {id:109,cat:'타이라바',brand:'시마노',name:'오시아 콘퀘스트 200HG 우핸들',year:'14년형'},
+    {id:110,cat:'타이라바',brand:'시마노',name:'오시아 콘퀘스트 200PG 우핸들',year:'15년형'},
+    {id:108,cat:'타이라바',brand:'시마노',name:'염월 프리미엄 150HG 우핸들',year:'18년형'},
+    {id:111,cat:'타이라바',brand:'시마노',name:'염월 100PG 우핸들',year:'21년형'},
+    {id:112,cat:'타이라바',brand:'시마노',name:'염월 101PG 좌핸들',year:'21년형'},
+    {id:107,cat:'타이라바',brand:'시마노',name:'염월 CT 150PG 우핸들',year:'19년형'},
+    {id:113,cat:'선상',brand:'시마노',name:'환풍 XT 150 우핸들',year:'20년형'},
+    {id:114,cat:'선상',brand:'시마노',name:'환풍 XT 151 좌핸들',year:'20년형'},
+    {id:116,cat:'갯바위',brand:'시마노',name:'BB-X 하이퍼포스 C3000DXG',year:'22년형'},
+  ];
+  // 처음 웹사이트에 올린 가격과 수량(11월 1일). 웹사이트에 연결이 안 될 때도 이 값을 쓴다
+  const FIRST={101:[400000,1],102:[260000,3],103:[280000,2],104:[240000,3],105:[240000,1],106:[330000,3],107:[250000,1],108:[350000,1],
+    109:[480000,1],110:[480000,1],111:[270000,1],112:[270000,1],113:[100000,1],114:[100000,1],115:[160000,1],116:[480000,2],117:[50000,1],119:[360000,1]};
+  // 인터넷 최저가(한국 정품 새 제품, 11월 1일 밤 판매처 페이지에서 확인). 웹사이트 DB(net_*)에 값이 있으면 그걸 먼저 쓴다.
+  // 연식이 다른 후속 모델과는 비교하지 않는다. 같은 연식의 정품 매물이 없는 101·102·108·109·110은 비워 둠. 다나와 경유 할인가가 더 싸면 그 값을 썼다
+  const NET={
+    103:{price:294300,url:'https://www.11st.co.kr/products/9236910806'},
+    104:{price:186010,url:'https://www.11st.co.kr/products/9478753464'},
+    105:{price:256000,url:'https://prod.danawa.com/info/?pcode=9831414'},
+    106:{price:340200,url:'https://item.gmarket.co.kr/Item?goodscode=4175708433'},
+    107:{price:251100,url:'https://item.gmarket.co.kr/Item?goodscode=3678234336'},
+    111:{price:272630,url:'https://item.gmarket.co.kr/Item?goodscode=2885141289'},
+    112:{price:249000,url:'https://www.coupang.com/vp/products/6965323709?itemId=16971300322&vendorItemId=92141552425'},
+    113:{price:93000,url:'https://wonfishing.com/product/detail.html?product_no=4652'},
+    114:{price:93500,url:'https://wonfishing.com/product/detail.html?product_no=4653'},
+    115:{price:145500,url:'https://wonfishing.com/product/detail.html?product_no=4481'},
+    116:{price:467000,url:'https://wonfishing.com/product/detail.html?product_no=4433'},
+    117:{price:44350,url:'https://prod.danawa.com/info/?pcode=15348359'},
+    119:{price:350100,url:'https://item.gmarket.co.kr/Item?goodscode=3401264572'},
+  };
+  // 처음 값: 방송에서 정한 가격(웹사이트에 반영되면 같아져서 지워도 됨). 처음 가격·인터넷 최저가는 비워 두면 웹사이트·위 조사값을 쓴다
+  // soldManual = 방송에서 직접 완판 처리한 품목(웹사이트 수량과 상관없이 완판으로 보임)
+  const START={
+    price:{101:360000,116:440000,119:330000},
+    orig:{},
+    low:{},
+    soldManual:{},
+    left:{},
+    buyers:{},
+    hidden:[],
+    note:'인터넷 최저가: 한국 정품 새 제품 기준',
+  };
+
+  const KEY='reels-board-v2';
+  const fresh=()=>JSON.parse(JSON.stringify(Object.assign({v:2},START)));
+  // 릴 가격으로 말이 되는 범위. 벗어나면 잘못 친 값으로 보고 받지 않는다(11월 2일 세피아가 800만 원으로 들어간 일)
+  const MIN_PRICE=10000, MAX_PRICE=2000000;
+  const okPrice=n=>n>=MIN_PRICE && n<=MAX_PRICE;
+  // 저장된 값 중 범위를 벗어난 방송가·이전 가격은 지운다 → 그 품목은 웹사이트 가격으로 돌아감
+  function sanitize(s){
+    ['price','orig'].forEach(k=>{ const m=s[k]||{}; for(const id in m) if(!okPrice(m[id])) delete m[id]; });
+    const l=s.left||{}; for(const id in l) if(!(l[id] && Number.isInteger(l[id].n) && l[id].n>=0 && l[id].n<=999 && Number.isInteger(l[id].at))) delete l[id];
+    const b=s.buyers||{}; for(const id in b) if(typeof b[id]!=='string' || !b[id].trim()) delete b[id]; else b[id]=b[id].slice(0,60);
+    return s;
+  }
+  function load(){
+    if(!HOST) return fresh();
+    try{ const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.v===2) return sanitize(s); }catch(e){}
+    return fresh();
+  }
+  let state=load(), saved='';
+  if(HOST) try{ saved=localStorage.getItem(KEY)||''; }catch(e){}
+  // rev = 마지막으로 고친 시각. 고치는 화면·시청자 화면·DB 중 더 최근 것을 따른다
+  function saveLocal(){
+    const raw=JSON.stringify(state);
+    try{ localStorage.setItem(KEY,raw); saved=raw; }catch(e){}
+  }
+  function save(){
+    if(!HOST) return;
+    state.rev=Date.now(); saveLocal(); schedulePush();
+  }
+  // 잘못된 값을 지웠으면 바로 저장해서 다른 창(가격 입력 창)도 같은 값을 보게
+  if(HOST && saved && JSON.stringify(state)!==saved) saveLocal();
+
+  // --- 시청자 화면과 나누는 상태(DB board_state 'reels') ---
+  const BOARD='reels', SHARED=['v','rev','price','orig','low','soldManual','left','buyers','hidden','note'];
+  const sharedState=()=>Object.fromEntries(SHARED.filter(k=>k in state).map(k=>[k,state[k]]));
+  const SKEY='reels-host-session';
+  let session=null; try{ session=JSON.parse(localStorage.getItem(SKEY)||'null'); }catch(e){}
+  function setSession(s){ session=s; try{ s?localStorage.setItem(SKEY,JSON.stringify(s)):localStorage.removeItem(SKEY); }catch(e){} showLogin(); }
+  async function authReq(grant,body){
+    const r=await fetch(BASE+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:AKEY,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){ const e=new Error(j.error_description||j.msg||j.error||'auth_failed'); e.status=r.status; throw e; }
+    return {access_token:j.access_token,refresh_token:j.refresh_token,expires_at:Date.now()+(j.expires_in||3600)*1000};
+  }
+  async function token(){
+    if(!session) throw new Error('nologin');
+    if(Date.now()>session.expires_at-60000){
+      try{ setSession(await authReq('refresh_token',{refresh_token:session.refresh_token})); }
+      catch(e){ setSession(null); throw e; }
+    }
+    return session.access_token;
+  }
+  let pushT=null, pushState='';  // '' | 'ok' | 'login' | 'fail' | 'saving'
+  function schedulePush(){ clearTimeout(pushT); pushT=setTimeout(push,400); }
+  async function push(){
+    if(!HOST) return;
+    if(!session){ setSync('login'); return; }
+    setSync('saving');
+    try{
+      const tk=await token();
+      const r=await fetch(BASE+'/rest/v1/rpc/board_set',{method:'POST',headers:{apikey:AKEY,Authorization:'Bearer '+tk,'Content-Type':'application/json'},
+        body:JSON.stringify({p_id:BOARD,p_state:sharedState()})});
+      if(r.status===401){ setSession(null); setSync('login'); return; }
+      if(!r.ok) throw new Error('http_'+r.status);
+      setSync('ok');
+    }catch(e){ setSync(session?'fail':'login'); }
+  }
+  // DB에서 받아 오기: 시청자는 3초마다, 고치는 화면은 15초마다(다른 기기에서 고친 것 반영)
+  async function pullBoard(){
+    try{
+      const r=await fetch(BASE+'/rest/v1/rpc/board_get',{method:'POST',headers:{apikey:AKEY,Authorization:'Bearer '+AKEY,'Content-Type':'application/json'},body:JSON.stringify({p_id:BOARD})});
+      if(!r.ok) throw new Error('http_'+r.status);
+      const j=await r.json(), rs=(j&&j.state)||{};
+      if(rs.v===2 && (rs.rev||0)>(state.rev||0)){
+        state=sanitize(Object.assign(fresh(),rs));
+        if(HOST) saveLocal();
+        render();
+      }else if(HOST && session && (state.rev||0)>(rs.rev||0)){
+        schedulePush(); // 로그인 전에 고친 것이 아직 안 올라갔으면 올린다
+      }
+    }catch(e){}
+  }
+  function setSync(s){
+    pushState=s; showLogin();
+    const el=$('#sync'); if(!HOST){ el.hidden=true; return; }
+    el.hidden=false;
+    el.className='sync'+(s==='ok'?' ok':s==='login'||s==='fail'?' bad':'');
+    el.textContent=s==='ok'?'시청자 화면에 반영됨':s==='saving'?'시청자 화면에 올리는 중…':s==='login'?'시청자 화면에 아직 안 나가요 · E를 눌러 로그인':s==='fail'?'시청자 화면에 못 올렸어요 · 인터넷 확인':'';
+  }
+  function showLogin(){
+    const box=$('#login'); if(!box) return;
+    box.classList.toggle('on',!!session);
+    $('#loginForm').hidden=!!session;
+    $('#loginMsg').textContent=session
+      ? (pushState==='fail'?'로그인됨 · 마지막으로 올리지 못했어요. 인터넷 연결을 확인해 주세요.':'로그인됨 · 여기서 바꾼 내용이 시청자 링크에 바로 반영돼요.')
+      : '관리자로 로그인하면 여기서 바꾼 내용이 시청자 링크에도 바로 반영돼요. (관리 화면과 같은 아이디·비밀번호)';
+  }
+
+  // 웹사이트(판매 목록 DB) 가격·수량
+  const CFG=window.LUDIC_CONFIG||{};
+  const BASE=(CFG.supabaseUrl||'').replace(/\/$/,''), AKEY=CFG.supabaseAnonKey||'';
+  const site={}, bumped=new Set(); let online=null, pulledAt=null;
+  async function pull(){
+    try{
+      if(!BASE) throw new Error('no_config');
+      const r=await fetch(BASE+'/rest/v1/rpc/stock_list',{method:'POST',headers:{apikey:AKEY,Authorization:'Bearer '+AKEY,'Content-Type':'application/json'},body:'{}'});
+      if(!r.ok) throw new Error('http_'+r.status);
+      const a=await r.json();
+      a.forEach(x=>{ if(x.kind==='reel'){
+        const before=site[x.id];
+        if(before && x.left<before.left) bumped.add(x.id);
+        site[x.id]={price:x.price,left:x.left,was:x.was_price,
+          net:x.net_price?{price:x.net_price,url:x.net_url||'',label:x.net_label||''}:null};
+      }});
+      online=true; pulledAt=new Date();
+    }catch(e){ online=false; }
+    ready=true; // 처음 받아 온 뒤부터 완판 연출을 켠다
+    render(); status();
+  }
+
+  // 검색: 띄어쓰기·하이픈 무시, 낱말마다 모두 들어 있어야 찾음. 손님이 부르는 다른 이름도 같이 찾는다
+  const ALIAS={'세피아':'sephia','반포드':'vanford','트윈파워':'twinpower','소아레':'soare','넥사브':'nexave 넥서브','루비아스':'luvias',
+    '오시아':'ocea','콘퀘스트':'conquest','염월':'엔게츠 engetsu','환풍':'겐푸 genpu','하이퍼포스':'hyperforce','BB-X':'비비엑스 bbx',
+    '시마노':'shimano','다이와':'daiwa','에깅':'무늬오징어 갑오징어 eging','타이라바':'참돔 베이트','선상':'쥐치 한치 가자미 베이트',
+    '갯바위':'레버브레이크','아징':'전갱이 라이트게임','범용':'스피닝','우핸들':'오른손','좌핸들':'왼손'};
+  const norm=s=>String(s).toLowerCase().replace(/[\s\-·_]/g,'');
+  const hay=i=>{ const t=[i.name,i.cat,i.brand,i.year].join(' '); return norm(t+' '+Object.keys(ALIAS).filter(k=>t.includes(k)).map(k=>ALIAS[k]).join(' ')); };
+  const matches=(i,q)=>{ const w=String(q).trim().split(/\s+/).map(norm).filter(Boolean); if(!w.length) return true; const h=hay(i); return w.every(x=>h.includes(x)); };
+  let query='';
+
+  const sitePrice=i=>(site[i.id]||{}).price ?? FIRST[i.id][0];
+  // 직접 완판 표시. 예전 칸(sold)에 저장된 하이퍼포스 완판은 잘못 넣은 값이라 읽지 않는다
+  const soldMark=i=>(state.soldManual||{})[i.id] ?? false;
+  const siteLeft=i=>(site[i.id]||{}).left ?? FIRST[i.id][1];
+  // 남은 수량: 방송에서 직접 고친 값(n)이 있으면, 고친 뒤 웹사이트에서 더 팔린 만큼(at → 지금)만 빼서 보여 준다
+  function left(i){
+    if(soldMark(i)) return 0;
+    const o=(state.left||{})[i.id];
+    return o ? Math.max(0, o.n+(siteLeft(i)-o.at)) : siteLeft(i);
+  }
+  const item=id=>ITEMS.find(x=>x.id===id);
+  // 아래칸: 남은 수량(누르면 고침) + 사 간 사람(누르면 이름 입력)
+  function qtyBox(n,id){
+    return '<span class="qbox'+(n<=0?' zero':n===1?' last':'')+'" data-qty="'+id+'"><span class="q">'+Math.max(n,0)+'</span>'+(n<=0?'개 · 완판':'개 남음')+'</span>';
+  }
+  function buyersBox(i,cls){
+    const b=(state.buyers||{})[i.id]||'';
+    if(!HOST && !b) return '';
+    return '<span class="'+cls+(b?'':' empty')+'" data-buy="'+i.id+'"><span class="by-lb">구매</span>'+
+      '<span class="by'+(b.length>16?' longer':b.length>10?' long':'')+'">'+(b?esc(b):'이름 입력')+'</span></span>';
+  }
+  const price=i=>state.price[i.id] ?? sitePrice(i);
+  const visible=()=>ITEMS.filter(i=>!state.hidden.includes(i.id) && matches(i,query));
+  // 기본값: 웹사이트 → 처음 올린 가격·위 조사값. 입력 창에서 넣은 값이 있으면 그게 우선
+  const baseOrig=i=>(site[i.id]||{}).was || FIRST[i.id][0];
+  const baseNet=i=>(site[i.id]||{}).net || NET[i.id] || {};
+  const netOf=i=>Object.assign({},baseNet(i),state.low[i.id]);
+  // 이전 가격: 방송가와 다를 때만
+  function orig(i){ const o=state.orig[i.id] ?? baseOrig(i); return o && o!==price(i) ? o : null; }
+  // 인터넷 최저가: 방송가보다 높을 때만
+  function low(i){
+    const l=netOf(i), p=price(i);
+    if(!l.price || l.price<=p) return null;
+    return {label:l.label||'인터넷 최저가', price:l.price, url:safeUrl(l.url), save:l.price-p};
+  }
+  const qtyText=n=>n<=0?'완판':(n===1?'마지막 1개':n+'개 남음');
+  const lowValue=(l,unit)=>l.url
+    ? '<a class="go" href="'+esc(l.url)+'" target="_blank" rel="noopener">'+won(l.price)+unit+' ↗</a>'
+    : '<span class="v">'+won(l.price)+unit+'</span>';
+
+  // 가격 숫자 칸: 누르면 그 자리에서 고친다
+  const priceBox=(i,unit)=>'<span class="won num"><span class="v" data-edit="'+i.id+'">'+won(price(i))+'</span><em>'+unit+'</em></span>';
+
+  function render(){
+    // 가격을 고치는 중에는 다시 그리지 않는다(입력 중인 칸이 사라지지 않게). 끝나면 다시 그림
+    if(editing){ pendingRender=true; return; }
+    pendingRender=false;
+    checkSold();
+    const list=visible();
+    $('#qcount').textContent=query.trim()?list.length+'개':'';
+    if(!list.length && query.trim()){
+      $('#grid').innerHTML='<p class="empty">‘'+esc(query.trim())+'’ 릴은 지금 없어요<small>Esc를 누르면 전체 목록으로 돌아가요</small></p>';
+      $('#note').textContent=state.note||'';
+      return;
+    }
+    $('#grid').innerHTML=list.map(i=>{
+      const n=left(i), o=orig(i), l=low(i);
+      return '<div class="card'+(n<=0?' sold':'')+(justSold.has(i.id)?' justsold':'')+(bumped.has(i.id)?' bump':'')+'" role="button" tabindex="0" data-id="'+i.id+'">'+
+        (n<=0?'<span class="stamp">완판<small>SOLD OUT</small></span>':'')+
+        '<span class="nm">'+esc(i.name)+'</span>'+
+        // 시마노가 대부분이라 카드에는 다른 브랜드만 적는다(크게 보기에는 모두 적음)
+        '<span class="info"><span class="meta"><b>'+esc(i.cat)+'</b> · '+(i.brand!=='시마노'?esc(i.brand)+' · ':'')+esc(i.year)+'</span>'+
+          (l?'<span class="line"><span class="lb">'+esc(l.label)+'</span>'+lowValue(l,'')+'<span class="save">-'+won(l.save)+'</span></span>':'')+
+        '</span>'+
+        '<span class="pr'+(o?' has-prev':'')+'">'+(o?'<s class="prev num">'+won(o)+'원</s>':'')+priceBox(i,'원')+'</span>'+
+        '<span class="foot">'+qtyBox(n,i.id)+buyersBox(i,'buyers')+'</span>'+
+      '</div>';
+    }).join('');
+    bumped.clear();
+    $('#note').textContent=state.note||'';
+    if(spotId!=null) showSpot(spotId,true);
+    fit();
+  }
+
+  // 크게 보기
+  let spotId=null;
+  function showSpot(id,quiet){
+    const i=ITEMS.find(x=>x.id===id); if(!i) return;
+    spotId=id;
+    const n=left(i), o=orig(i), l=low(i), p=price(i);
+    const chip=n<=0?'':(l?'인터넷보다 '+won(l.save)+'원 싸요':(o&&o>p?'이전보다 '+won(o-p)+'원 내렸어요':''));
+    const el=$('#spot');
+    // quiet = 20초마다 다시 그릴 때: 열림·도장 애니메이션을 다시 돌리지 않는다(방금 완판된 품목만 도장이 찍힘)
+    el.innerHTML='<div class="spot-card'+(n<=0?' sold':'')+(quiet&&!justSold.has(id)?' quiet':'')+'"'+(quiet?' style="animation:none"':'')+'>'+
+      '<p class="s-top"><span class="tag">'+esc(i.cat)+'</span>'+esc(i.brand)+' · '+esc(i.year)+'</p>'+
+      '<span class="s-qty'+(n<=0?' sold':n===1?' last':'')+'" data-sqty="'+id+'"><span class="q">'+Math.max(n,0)+'</span>'+(n<=0?'개 · 완판':'개 남음')+'</span>'+
+      (n<=0?'<span class="stamp">완판<small>SOLD OUT</small></span>':'')+
+      '<h2 class="s-name">'+esc(i.name)+'</h2>'+
+      '<div class="s-chips"><span class="chip on">한국 정품</span><span class="chip on">보증서 카드 포함</span></div>'+
+      buyersBox(i,'s-buy')+
+      '<div class="s-row"><div>'+
+        (l?'<p class="line"><span class="lb">'+esc(l.label)+'</span>'+lowValue(l,'원')+'</p>':'')+
+        (chip?'<span class="s-save">'+chip+'</span>':'')+
+      '</div><div class="s-price">'+(o?'<s class="prev num">'+won(o)+'원</s>':'')+priceBox(i,'원')+'</div></div>'+
+    '</div><p class="s-nav">'+(HOST?'← → 다른 품목 · 가격·수량·구매자를 누르면 입력 · R 원래 가격 · X 완판 · Esc 닫기':'← → 다른 품목 · 아무 곳이나 누르면 닫기')+'</p>';
+    if(!quiet) el.hidden=false;
+  }
+  function closeSpot(){ spotId=null; $('#spot').hidden=true; }
+  function stepSpot(d){
+    const v=visible(); if(!v.length) return;
+    let k=v.findIndex(x=>x.id===spotId); k=(k+d+v.length)%v.length;
+    showSpot(v[k].id);
+  }
+  // 최저가 링크를 누르면 판매처만 열고 크게 보기는 그대로 둔다. 가격 숫자를 누르면 그 자리에서 고친다
+  $('#grid').addEventListener('click',e=>{
+    if(e.target.closest('a')) return;
+    if(HOST){
+      const v=e.target.closest('[data-edit]'); if(v){ startEdit(v); return; }
+      const q=e.target.closest('[data-qty]'); if(q){ startEdit(q.querySelector('.q'),'qty',+q.dataset.qty); return; }
+      const b=e.target.closest('[data-buy]'); if(b){ startEdit(b.querySelector('.by'),'buy',+b.dataset.buy); return; }
+    }
+    if(document.body.classList.contains('mobile')) return;
+    const c=e.target.closest('.card'); if(c) showSpot(+c.dataset.id);
+  });
+  $('#grid').addEventListener('keydown',e=>{ if(e.target.isContentEditable) return; const c=e.target.closest('.card'); if(c&&(e.key==='Enter'||e.key===' ')){ e.preventDefault(); showSpot(+c.dataset.id); } });
+  $('#spot').addEventListener('click',e=>{
+    if(e.target.closest('a')) return;
+    if(HOST){
+      const v=e.target.closest('[data-edit]'); if(v){ startEdit(v); return; }
+      const q=e.target.closest('[data-sqty]'); if(q){ startEdit(q.querySelector('.q'),'qty',+q.dataset.sqty); return; }
+      const b=e.target.closest('[data-buy]'); if(b){ startEdit(b.querySelector('.by'),'buy',+b.dataset.buy); return; }
+    }
+    if(!editing) closeSpot();
+  });
+
+  // 가격 바로 고치기: 숫자를 지우고 새 가격을 친 뒤 Enter(또는 다른 곳 클릭). 36처럼 만원 단위로 쳐도 된다. Esc는 취소
+  //   가격을 내리면 바로 전 가격이 "이전 가격"으로 위에 작게 남는다
+  //   남은 수량: 숫자만(0~999). 0이면 완판 연출. 구매자: 이름을 쉼표로 이어 쓰기(예: 홍길동, 김철수). 지우고 Enter면 비움
+  let editing=null, editKind='price', editId=0, pendingRender=false;
+  function startEdit(el,kind,id){
+    if(!HOST||editing||!el) return;
+    editing=el; editKind=kind||'price'; editId=id ?? +el.dataset.edit;
+    const i=item(editId);
+    el.dataset.before=editKind==='buy'?((state.buyers||{})[editId]||''):editKind==='qty'?left(i):price(i);
+    if(editKind==='buy' && !(state.buyers||{})[editId]) el.textContent='';
+    el.contentEditable='true'; el.spellcheck=false; el.focus();
+    if(el.textContent){
+      const r=document.createRange(); r.selectNodeContents(el);
+      const s=getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+  }
+  function endEdit(commit){
+    const el=editing; if(!el) return;
+    editing=null; el.contentEditable='false';
+    const id=editId, i=item(id), before=el.dataset.before, txt=el.textContent.trim();
+    let bad=false;
+    if(commit && editKind==='price'){
+      const n=parseWon(txt);
+      bad=n!=null && !okPrice(n);
+      if(n && !bad && n!==+before){
+        if(n<+before) state.orig[id]=+before;
+        state.price[id]=n; save();
+      }
+    }else if(commit && editKind==='qty'){
+      const d=txt.replace(/[^\d]/g,''), n=d?parseInt(d,10):NaN;
+      bad=!(n>=0 && n<=999);
+      if(!bad && n!==+before){
+        state.left=Object.assign({},state.left,{[id]:{n,at:siteLeft(i)}});
+        if(n>0 && soldMark(i)) state.soldManual=Object.assign({},state.soldManual,{[id]:false});
+        save();
+      }
+    }else if(commit && editKind==='buy'){
+      const b=txt.replace(/\s+/g,' ').slice(0,60);
+      if(b!==before){
+        state.buyers=Object.assign({},state.buyers);
+        if(b) state.buyers[id]=b; else delete state.buyers[id];
+        save();
+      }
+    }
+    render(); if(!$('#edit').hidden) buildEditor();
+    // 범위를 벗어난 값은 저장하지 않고 그 칸을 빨갛게 흔들어 알려 준다
+    if(bad) document.querySelectorAll(editKind==='qty'?'[data-qty="'+id+'"] .q,[data-sqty="'+id+'"] .q':'[data-edit="'+id+'"]').forEach(v=>v.classList.add('reject'));
+  }
+  // R(크게 보기에서): 그 품목의 방송가·이전 가격을 지우고 웹사이트 가격으로 되돌림
+  function resetPrice(id){
+    delete state.price[id]; delete state.orig[id]; save(); render();
+    if(!$('#edit').hidden) buildEditor();
+  }
+  document.addEventListener('focusout',e=>{ if(editing&&e.target===editing) endEdit(true); });
+
+  // 완판 감지: 웹사이트 수량이 0이 되거나 직접 완판 처리하면 화면 전체 완판 연출. 처음 불러올 때 이미 완판인 건 연출하지 않음
+  let soldSeen=null, ready=false, muted=false, boomT=null, actx=null;
+  const justSold=new Set(), boomQueue=[];
+  function checkSold(){
+    if(!ready) return;
+    const now=new Set(ITEMS.filter(i=>left(i)<=0).map(i=>i.id));
+    if(soldSeen) ITEMS.forEach(i=>{ if(now.has(i.id)&&!soldSeen.has(i.id)){ justSold.add(i.id); boomQueue.push(i); setTimeout(()=>justSold.delete(i.id),6000); } });
+    soldSeen=now;
+    if(boomQueue.length&&$('#boom').hidden) nextBoom();
+  }
+  function nextBoom(){
+    const i=boomQueue.shift(); if(!i) return;
+    const colors=['var(--flare)','var(--lavender)','var(--white)','var(--violet)','var(--success)'];
+    let bits='';
+    for(let k=0;k<70;k++) bits+='<i style="left:'+Math.round(Math.random()*1920)+'px;background:'+colors[k%colors.length]+';--dx:'+Math.round(Math.random()*400-200)+'px;--r:'+Math.round(Math.random()*900-450)+'deg;animation-duration:'+(1.8+Math.random()*1.4).toFixed(2)+'s;animation-delay:'+(Math.random()*.6).toFixed(2)+'s"></i>';
+    const el=$('#boom');
+    el.innerHTML='<div class="rays"></div><div class="in"><p class="k">SOLD OUT</p><p class="t">완판!</p><p class="n">'+esc(i.name)+'</p></div>'+bits;
+    el.hidden=false;
+    stage.classList.remove('shake'); void stage.offsetWidth; stage.classList.add('shake');
+    boomSound();
+    clearTimeout(boomT);
+    boomT=setTimeout(()=>{ el.hidden=true; el.innerHTML=''; nextBoom(); },3600);
+  }
+  // 쿵 + 빰빰빠밤(브라우저에서 바로 만든 소리). M 키로 끄고 켬
+  function boomSound(){
+    if(muted) return;
+    try{
+      actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+      if(actx.state==='suspended') actx.resume();
+      const t=actx.currentTime;
+      const o=actx.createOscillator(), g=actx.createGain();
+      o.type='sine'; o.frequency.setValueAtTime(170,t); o.frequency.exponentialRampToValueAtTime(40,t+.35);
+      g.gain.setValueAtTime(.9,t); g.gain.exponentialRampToValueAtTime(.001,t+.4);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t+.45);
+      [523,659,784,1047].forEach((f,k)=>{
+        const o2=actx.createOscillator(), g2=actx.createGain(), s=t+.25+k*.12;
+        o2.type='square'; o2.frequency.value=f;
+        g2.gain.setValueAtTime(0,s); g2.gain.linearRampToValueAtTime(.12,s+.01); g2.gain.exponentialRampToValueAtTime(.001,s+(k===3?.6:.14));
+        o2.connect(g2).connect(actx.destination); o2.start(s); o2.stop(s+.65);
+      });
+    }catch(e){}
+  }
+  // 직접 완판 처리하면 웹사이트 수량을 받아 오기 전이어도 바로 연출한다
+  function toggleSold(id){
+    const i=ITEMS.find(x=>x.id===id); if(!i) return;
+    const on=!soldMark(i);
+    state.soldManual=Object.assign({},state.soldManual,{[id]:on}); save();
+    if(on && left(i)<=0){
+      if(soldSeen) soldSeen.add(id);
+      justSold.add(id); setTimeout(()=>justSold.delete(id),6000);
+      boomQueue.push(i); if($('#boom').hidden) nextBoom();
+    }
+    render();
+    if(!$('#edit').hidden) buildEditor();
+  }
+
+  // 가격 입력 창
+  function parseWon(v){
+    v=String(v).trim(); if(!v) return null;
+    const f=parseFloat(v.replace(/,/g,'').replace(/[^\d.]/g,''));
+    if(!isFinite(f)||f<=0) return null;
+    return Math.round(f<10000?f*10000:f);
+  }
+  function field(k,cap,attrs){ return '<label class="f'+(k==='url'||k==='buy'?' '+k:'')+'"><span>'+cap+'</span><input data-k="'+k+'" '+attrs+'></label>'; }
+  function buildEditor(){
+    $('#noteIn').value=state.note||'';
+    $('#rows').innerHTML=ITEMS.map(i=>{
+      const l=state.low[i.id]||{}, b=baseNet(i), p=state.price[i.id], o=state.orig[i.id], lo=(state.left||{})[i.id], bu=(state.buyers||{})[i.id]||'';
+      return '<div class="row'+(state.hidden.includes(i.id)?' off':'')+'" data-id="'+i.id+'">'+
+        '<span class="who">'+esc(i.brand+' '+i.name)+'<small>'+esc(i.year)+' · 웹사이트 <span data-site>'+won(sitePrice(i))+'</span>원 · <span data-left>'+qtyText(left(i))+'</span></small><span class="warn" data-warn></span></span>'+
+        '<span class="f chk"><label><span>보이기</span><input data-k="show" type="checkbox"'+(state.hidden.includes(i.id)?'':' checked')+'></label>'+
+          '<label><span>완판</span><input data-k="sold" type="checkbox"'+(soldMark(i)?' checked':'')+'></label></span>'+
+        field('orig','이전 가격','inputmode="decimal" placeholder="'+won(baseOrig(i))+'" value="'+(o!=null?won(o):'')+'"')+
+        field('price','방송가','inputmode="decimal" placeholder="'+won(sitePrice(i))+'" value="'+(p!=null?won(p):'')+'"'+(p!=null?' class="over"':''))+
+        field('low','인터넷 최저가','inputmode="decimal" placeholder="'+(b.price?won(b.price):'없음')+'" value="'+(l.price?won(l.price):'')+'"')+
+        field('label','최저가 설명','type="text" placeholder="'+esc(b.label||'인터넷 최저가')+'" value="'+esc(l.label||'')+'"')+
+        field('url','최저가 링크','type="url" placeholder="'+esc(b.url||'https://…')+'" value="'+esc(l.url||'')+'"')+
+        field('left','남은 수량','inputmode="numeric" placeholder="'+siteLeft(i)+'" value="'+(lo?lo.n:'')+'"')+
+        field('buy','구매자','type="text" placeholder="예: 홍길동, 김철수" value="'+esc(bu)+'"')+
+      '</div>';
+    }).join('');
+    refreshEditor(); filterRows();
+  }
+  function refreshEditor(){
+    document.querySelectorAll('#rows .row').forEach(r=>{
+      const i=ITEMS.find(x=>x.id===+r.dataset.id);
+      r.querySelector('[data-site]').textContent=won(sitePrice(i));
+      r.querySelector('[data-left]').textContent=qtyText(left(i));
+      r.querySelector('[data-k=price]').placeholder=won(sitePrice(i));
+      const l=netOf(i), p=price(i);
+      const warn=[];
+      if(l.price && l.price<p) warn.push('인터넷 최저가보다 '+won(p-l.price)+'원 비싸요(화면에 비교 안 띄움)');
+      else if(l.price && l.price===p) warn.push('인터넷 최저가와 같아요(화면에 비교 안 띄움)');
+      if(l.url && !safeUrl(l.url)) warn.push('링크는 https:// 로 시작해야 해요');
+      r.querySelector('[data-warn]').textContent=warn.join(' · ');
+    });
+    // 인터넷보다 비싼 품목을 맨 위에 모아 보여 준다
+    const pricier=ITEMS.filter(i=>{ const l=netOf(i); return l.price && l.price<price(i); });
+    $('#pricier').textContent=pricier.length
+      ? '인터넷 최저가보다 비싼 품목 '+pricier.length+'개: '+pricier.map(i=>i.name+'(+'+won(price(i)-netOf(i).price)+')').join(', ')
+      : '인터넷 최저가보다 비싼 품목이 없어요';
+  }
+  $('#rows').addEventListener('input',e=>{
+    const r=e.target.closest('.row'); if(!r) return;
+    const id=+r.dataset.id, k=e.target.dataset.k;
+    // 범위(1만~200만 원)를 벗어난 값은 비운 것으로 본다 → 웹사이트 가격을 씀
+    if(k==='price'){ let n=parseWon(e.target.value); if(n!=null&&!okPrice(n)) n=null; if(n==null) delete state.price[id]; else state.price[id]=n; e.target.classList.toggle('over',n!=null); }
+    if(k==='orig'){ let n=parseWon(e.target.value); if(n!=null&&!okPrice(n)) n=null; if(n==null) delete state.orig[id]; else state.orig[id]=n; }
+    if(k==='left'){
+      const d=e.target.value.replace(/[^\d]/g,''), n=d?Math.min(parseInt(d,10),999):null;
+      state.left=Object.assign({},state.left);
+      if(n==null) delete state.left[id]; else state.left[id]={n,at:siteLeft(item(id))};
+    }
+    if(k==='buy'){ const b=e.target.value.replace(/\s+/g,' ').trim().slice(0,60); state.buyers=Object.assign({},state.buyers); if(b) state.buyers[id]=b; else delete state.buyers[id]; }
+    if(k==='low'||k==='label'||k==='url'){
+      const l=Object.assign({},state.low[id]);
+      if(k==='low'){ const n=parseWon(e.target.value); if(n==null) delete l.price; else l.price=n; }
+      else { const t=e.target.value.trim(); if(t) l[k]=t; else delete l[k]; }
+      if(l.price||l.label||l.url) state.low[id]=l; else delete state.low[id];
+    }
+    if(k==='sold'){ state.soldManual=Object.assign({},state.soldManual,{[id]:e.target.checked}); }
+    if(k==='show'){
+      state.hidden=state.hidden.filter(x=>x!==id);
+      if(!e.target.checked) state.hidden.push(id);
+      r.classList.toggle('off',!e.target.checked);
+    }
+    save(); render(); refreshEditor();
+  });
+  $('#rows').addEventListener('focusout',e=>{
+    const k=e.target.dataset&&e.target.dataset.k;
+    if(k==='price'||k==='low'||k==='orig'){ const n=parseWon(e.target.value); e.target.value=n==null?'':won(n); }
+  });
+  $('#noteIn').addEventListener('input',e=>{ state.note=e.target.value; save(); render(); });
+  function filterRows(){
+    const v=$('#eq').value;
+    document.querySelectorAll('#rows .row').forEach(r=>{ r.hidden=!matches(ITEMS.find(x=>x.id===+r.dataset.id),v); });
+  }
+  $('#eq').addEventListener('input',filterRows);
+  $('#resetAll').addEventListener('click',()=>{
+    if(!confirm('입력한 가격·최저가·링크를 모두 지우고 처음 값으로 되돌릴까요?')) return;
+    state=fresh(); save(); buildEditor(); render();
+  });
+  const editOnly=HOST && new URLSearchParams(location.search).has('edit');
+  function openEdit(){ if(!HOST) return; buildEditor(); showLogin(); $('#edit').hidden=false; }
+  $('#loginForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const id=$('#uid').value.trim(), pw=$('#pw').value, err=$('#loginErr');
+    if(!id||!pw){ err.hidden=false; err.textContent='아이디와 비밀번호를 입력해 주세요'; return; }
+    const email=id.includes('@')?id:id+'@'+(CFG.adminEmailDomain||'nakmat.com');
+    const btn=$('#loginBtn'); btn.disabled=true; btn.textContent='확인 중…'; err.hidden=true;
+    try{ setSession(await authReq('password',{email,password:pw})); $('#pw').value=''; if(!state.rev){ state.rev=Date.now(); saveLocal(); } push(); }
+    catch(x){ err.hidden=false; err.textContent=x.status===400||x.status===401?'아이디 또는 비밀번호가 맞지 않아요':'로그인하지 못했어요. 인터넷 연결을 확인해 주세요.'; }
+    finally{ btn.disabled=false; btn.textContent='로그인'; }
+  });
+  function closeEdit(){ if(editOnly) return; $('#edit').hidden=true; }
+  $('#closeEdit').addEventListener('click',closeEdit);
+  function status(){
+    const el=$('#status');
+    if(online===null) return;
+    el.classList.toggle('bad',!online);
+    el.textContent=online
+      ? '웹사이트 수량 연결됨 · '+pulledAt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+' 갱신(20초마다)'
+      : '웹사이트에 연결이 안 돼요. 마지막으로 받은 수량을 보여 주고 있어요.';
+    if(!$('#edit').hidden) refreshEditor();
+  }
+
+  // 다른 창에서 입력한 값 따라가기
+  function sync(){
+    let raw=''; try{ raw=localStorage.getItem(KEY)||''; }catch(e){}
+    if(raw && raw!==saved){ saved=raw; state=load(); render(); }
+  }
+  if(HOST){
+    addEventListener('storage',e=>{ if(e.key===KEY) sync(); if(e.key===SKEY){ try{ session=JSON.parse(localStorage.getItem(SKEY)||'null'); }catch(x){} showLogin(); } });
+    setInterval(sync,2000);
+  }
+
+  // 검색창: 글자를 칠 때마다 걸러 내고, 하나만 남으면 Enter로 크게 보기
+  const q=$('#q');
+  // 입력 중이거나 검색어가 남아 있으면 검색창을 펼치고 전화번호를 잠시 숨긴다
+  const syncSearch=()=>$('.head').classList.toggle('searching',document.activeElement===q||q.value.trim()!=='');
+  q.addEventListener('focus',syncSearch);
+  q.addEventListener('blur',syncSearch);
+  q.addEventListener('input',()=>{ query=q.value; render(); });
+  q.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){ q.value=''; query=''; render(); q.blur(); }
+    if(e.key==='Enter'){ const v=visible(); if(v.length){ q.blur(); showSpot(v[0].id); } }
+  });
+
+  // 키보드·화면 맞춤·커서
+  addEventListener('keydown',e=>{
+    if(editing && e.target===editing){
+      if(e.isComposing||e.keyCode===229) return; // 한글 입력 중 Enter는 글자 확정용
+      if(e.key==='Enter'){ e.preventDefault(); endEdit(true); }
+      else if(e.key==='Escape'){ e.preventDefault(); endEdit(false); }
+      return;
+    }
+    if(e.target.matches('input')) { if(e.key==='Escape') e.target.blur(); return; }
+    const k=e.key.toLowerCase();
+    if(HOST && k==='x' && spotId!=null){ toggleSold(spotId); return; }
+    if(HOST && k==='r' && spotId!=null){ resetPrice(spotId); return; }
+    if(k==='z'){ fitAll=!fitAll; try{ localStorage.setItem('reels-fitall',fitAll?'1':'0'); }catch(e){} fit(); return; }
+    if(k==='m'){ muted=!muted; return; }
+    if(e.key==='/'){ e.preventDefault(); closeSpot(); q.focus(); q.select(); return; }
+    if(k==='escape'){ if(!$('#edit').hidden) closeEdit(); else if(spotId!=null) closeSpot(); else if(query){ q.value=''; query=''; render(); syncSearch(); } }
+    else if(k==='e' && HOST){ $('#edit').hidden?openEdit():closeEdit(); }
+    else if(k==='f'){ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{}); }
+    else if(spotId!=null && e.key==='ArrowRight') stepSpot(1);
+    else if(spotId!=null && e.key==='ArrowLeft') stepSpot(-1);
+  });
+  const stage=$('#stage');
+  const GRID_TOP=172, CARD_H=216, GAP=14, BOTTOM=40;
+  let fitAll=false; try{ fitAll=localStorage.getItem('reels-fitall')==='1'; }catch(e){}
+  function fit(){
+    const w0=document.documentElement.clientWidth||innerWidth;
+    const mobile=!HOST && w0<900;
+    document.body.classList.toggle('mobile',mobile);
+    if(mobile){ document.body.style.minHeight=''; document.body.classList.remove('fitall'); return; }
+    const n=Math.max(1,$('#grid').children.length), rows=Math.ceil(n/3);
+    const H=Math.max(1080,GRID_TOP+rows*CARD_H+(rows-1)*GAP+BOTTOM);
+    const w=document.documentElement.clientWidth||innerWidth;
+    const s=fitAll?Math.min(w/1920,innerHeight/H):w/1920;
+    stage.style.setProperty('--h',H+'px'); stage.style.setProperty('--s',s);
+    document.body.classList.toggle('fitall',fitAll);
+    document.body.style.minHeight=fitAll?'':Math.ceil(H*s)+'px';
+    $('#ovStage').style.setProperty('--s2',Math.min(innerWidth/1920,innerHeight/1080));
+  }
+  addEventListener('resize',fit); fit();
+  let idleT=null;
+  const wake=()=>{ document.body.classList.remove('idle'); clearTimeout(idleT); idleT=setTimeout(()=>{ if($('#edit').hidden) document.body.classList.add('idle'); },2000); };
+  addEventListener('mousemove',wake); wake();
+
+  if(editOnly){ document.body.classList.add('editonly'); document.title='릴 가격 입력'; openEdit(); }
+  render(); pull(); setInterval(pull,20000);
+  pullBoard(); setInterval(pullBoard,HOST?15000:3000);
+  if(HOST) setSync(session?'ok':'login');
+})();
+</script>
+</body>
+</html>
